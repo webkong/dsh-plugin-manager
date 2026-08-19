@@ -218,7 +218,7 @@ export function PluginManagerTab() {
             'button',
             {
               key: 'toggle',
-              className: 'pmgr-btn',
+              className: 'pmgr-btn pmgr-btn-sm',
               disabled: busy !== null,
               onClick: () => act(p.disabled ? 'start' : 'stop', { name: p.name }, p.name),
             },
@@ -231,7 +231,7 @@ export function PluginManagerTab() {
             'button',
             {
               key: 'toggle',
-              className: 'pmgr-btn',
+              className: 'pmgr-btn pmgr-btn-sm',
               disabled: busy !== null,
               onClick: () => act('start', { name: p.name }, p.name),
             },
@@ -244,7 +244,7 @@ export function PluginManagerTab() {
           'button',
           {
             key: 'uninstall',
-            className: 'pmgr-btn weak',
+            className: 'pmgr-btn pmgr-btn-sm weak',
             disabled: busy !== null,
             onClick: () => {
               if (window.confirm('确定卸载插件 ' + p.name + ' 吗？（重启后不再装载）')) {
@@ -300,26 +300,34 @@ export function PluginManagerTab() {
     React.createElement(
       'div',
       { className: 'pmgr-head' },
-      React.createElement('h2', { className: 'pmgr-title' }, 'DSH 插件管理器'),
-      d && d.profile
-        ? React.createElement(Badge, null, 'profile: ' + d.profile + ' · ' + d.profileDir)
-        : null,
-      d && d.counts
-        ? React.createElement(Badge, null, '内置 ' + d.counts.builtin + ' / 三方 ' + d.counts.thirdParty)
-        : null,
-      d
-        ? React.createElement(
-            Badge,
-            null,
-            '已启用 ' + plugins.filter((q) => q.enabled).length +
-            ' · 已停用 ' + plugins.filter((q) => !q.enabled && !q.missing).length +
-            ' · 失效 ' + plugins.filter((q) => q.missing).length
-          )
-        : null,
       React.createElement(
-        'button',
-        { className: 'pmgr-btn', disabled: state.loading, onClick: () => refresh(false) },
-        '刷新'
+        'div',
+        { className: 'pmgr-title-row' },
+        React.createElement('h2', { className: 'pmgr-title' }, 'DSH 插件管理器'),
+        d && d.profile
+          ? React.createElement(Badge, null, 'profile: ' + d.profile + ' · ' + d.profileDir)
+          : null
+      ),
+      React.createElement(
+        'div',
+        { className: 'pmgr-status-row' },
+        d && d.counts
+          ? React.createElement(Badge, null, '内置 ' + d.counts.builtin + ' / 三方 ' + d.counts.thirdParty)
+          : null,
+        d
+          ? React.createElement(
+              Badge,
+              null,
+              '已启用 ' + plugins.filter((q) => q.enabled).length +
+              ' · 已停用 ' + plugins.filter((q) => !q.enabled && !q.missing).length +
+              ' · 失效 ' + plugins.filter((q) => q.missing).length
+            )
+          : null,
+        React.createElement(
+          'button',
+          { className: 'pmgr-btn', disabled: state.loading, onClick: () => refresh(false) },
+          '刷新'
+        )
       )
     ),
     React.createElement(

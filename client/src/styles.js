@@ -2,7 +2,9 @@
 // 卡片采用「插件管理后台」信息架构：Header（标题+状态+操作）/ 描述 / 来源 metadata
 const CSS = `
 .pmgr-root { display: flex; flex-direction: column; gap: 14px; padding: 4px 2px 24px; }
-.pmgr-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pmgr-head { display: flex; flex-direction: column; gap: 8px; }
+.pmgr-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.pmgr-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .pmgr-title { font-size: 15px; font-weight: 600; color: var(--dsw-alias-label-primary); margin: 0; }
 .pmgr-install { display: flex; gap: 8px; align-items: center; }
 .pmgr-input { flex: 1; min-width: 0; height: 34px; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border-radius: 8px; padding: 0 12px; font-size: 13px; }
@@ -45,6 +47,8 @@ const CSS = `
 .pmgr-btn:hover:not(:disabled) { border-color: var(--dsw-alias-brand-primary); color: var(--dsw-alias-brand-primary); }
 .pmgr-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
 .pmgr-btn:disabled { opacity: 0.55; cursor: default; }
+.pmgr-btn-sm { height: 26px; padding: 0 10px; font-size: 12px; border-radius: 6px; }
+.pmgr-btn-sm.weak { height: 26px; padding: 0 10px; }
 .pmgr-btn.weak { border: none; background: none; padding: 0 8px; color: var(--dsw-alias-label-secondary); }
 .pmgr-btn.weak:hover:not(:disabled) { color: var(--dsw-alias-state-error-primary); }
 .pmgr-btn.weak:focus-visible { outline: 2px solid var(--dsw-alias-state-error-primary); outline-offset: 1px; }
