@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-manager",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DSH 插件管理器：在 Web 设置页列出内置/三方插件，支持安装、卸载、启动、停用，并直跳三方插件 GitHub 仓库。",
   "license": "MIT",
   "keywords": [
@@ -37,8 +37,7 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-client-ui-slots",
-        "@deepseek-ai/dsh-api-remotes"
+        "@deepseek-ai/dsh-client-ui-slots"
       ]
     }
   },
@@ -47,8 +46,5 @@
     "cordis.patch.yml",
     "README.md",
     "LICENSE"
-  ],
-  "devDependencies": {
-    "@deepseek-ai/dsh-typert-protocol": "0.1.0-rc.7"
-  }
+  ]
 }

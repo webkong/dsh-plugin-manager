@@ -51,17 +51,17 @@ pnpm test         # node --test 纯函数单元测试
 
 | 文件 | 作用 |
 | --- | --- |
-| `lib/index.js` | Host 半部：`pmgr` Remote 服务（`TypertRemoteService`，SRC 模式自动发现），管理逻辑基于 profile manifest / cordis.patch.yml / dsh CLI；纯函数导出供测试 |
-| `lib/client.js` | Client 半部：`window.__ModuleLoader__` 单文件 bundle，注册 `settings.plugins.tab`「管理」标签页，经 `ctx.remote.pmgr` 调用 Host |
+| `lib/index.js` | Host 半部：`webServer` 前缀路由 `/pmgr/*`（HTTP API，与 `@deepseek-ai/dsh-plugin-console` 同方案），管理逻辑基于 profile manifest / cordis.patch.yml / dsh CLI；纯函数导出供测试 |
+| `lib/client.js` | Client 半部：`window.__ModuleLoader__` 单文件 bundle，注册 `settings.plugins.tab`「管理」标签页，用浏览器 `fetch` 调 `/pmgr/*` |
 | `cordis.patch.yml` | bundle patch：装载 `pmgr` 行 |
 | `test/pure.test.mjs` | 纯函数单元测试（entry-id 发现 / GitHub URL / patch 文本操作） |
 
 ### 通信契约
 
-- Remote 命名空间：`pmgr`（SRC 模式，Host 侧无需 zod/清单）
-- 方法与 wire 参数名必须一致：`list()` / `installPlugin(spec)` / `uninstall(name)` / `stop(name)` / `start(name)`
-  （`install` 与 Remote 命名空间服务的固有方法冲突，故用 `installPlugin`）
-- 客户端 `$mount` 需要严格 codec，因此 `lib/client.js` 内置最小 zod 兼容层
+- HTTP 路由（仅限本机 loopback）：`GET /pmgr/list`、`POST /pmgr/install`（`{spec}`）、
+  `POST /pmgr/uninstall|stop|start`（`{name}`），返回 `{ ok, message, output, ... }` 信封
+- 采用 webServer 而非 Typert Remote：插件**零外部依赖**，放在任意本地路径（工作区 / link / GitHub 安装）都不会出现
+  模块实例分裂导致的“端点 404”问题
 
 ## 许可证
 
