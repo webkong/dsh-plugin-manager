@@ -2,8 +2,53 @@
 import React from 'react';
 import { pmgr } from './api.js';
 
+// 模糊匹配：query 字符按顺序出现在 text 中（子序列匹配，大小写不敏感）
+function fuzzyMatch(text, query) {
+  const t = String(text || '').toLowerCase();
+  const q = String(query || '').toLowerCase();
+  if (!q) return true;
+  let ti = 0;
+  for (let qi = 0; qi < q.length; qi++) {
+    const found = t.indexOf(q[qi], ti);
+    if (found === -1) return false;
+    ti = found + 1;
+  }
+  return true;
+}
+
 export function Badge(props) {
   return React.createElement('span', { className: 'pmgr-badge ' + (props.kind || '') }, props.children);
+}
+
+// 一个可折叠分组：标题 + 搜索框 + 过滤后的插件列表
+function PluginGroup(props) {
+  const { title, count, open, onToggle, query, onQuery, plugins, renderRow } = props;
+  const filtered = plugins.filter((p) => fuzzyMatch(p.name + ' ' + (p.description || ''), query));
+  return React.createElement(
+    'div',
+    { className: 'pmgr-group' },
+    React.createElement(
+      'div',
+      { className: 'pmgr-group-head', onClick: onToggle },
+      React.createElement('h3', { className: 'pmgr-group-title' }, title + '（' + count + '）'),
+      React.createElement('span', { className: 'pmgr-group-toggle' }, open ? '▾ 收起' : '▸ 展开')
+    ),
+    open
+      ? React.createElement(
+          'div',
+          { className: 'pmgr-group' },
+          React.createElement('input', {
+            className: 'pmgr-input pmgr-search',
+            placeholder: '搜索' + title + '…（模糊匹配）',
+            value: query,
+            onChange: (e) => onQuery(e.target.value),
+          }),
+          filtered.length
+            ? filtered.map(renderRow)
+            : React.createElement('div', { className: 'pmgr-empty' }, '无匹配')
+        )
+      : null
+  );
 }
 
 export function PluginManagerTab() {
@@ -11,6 +56,10 @@ export function PluginManagerTab() {
   const [busy, setBusy] = React.useState(null);
   const [spec, setSpec] = React.useState('');
   const [notice, setNotice] = React.useState(null);
+  const [thirdOpen, setThirdOpen] = React.useState(true);
+  const [builtinOpen, setBuiltinOpen] = React.useState(false);
+  const [thirdQuery, setThirdQuery] = React.useState('');
+  const [builtinQuery, setBuiltinQuery] = React.useState('');
 
   const refresh = (silent) => {
     if (!silent) setState((s) => ({ ...s, loading: true, error: null }));
@@ -215,26 +264,32 @@ export function PluginManagerTab() {
     state.loading && !state.data
       ? React.createElement('div', { className: 'pmgr-empty' }, '加载中…')
       : null,
-    React.createElement(
-      'div',
-      { className: 'pmgr-group' },
-      React.createElement('h3', { className: 'pmgr-group-title' }, '内置插件（DSH 发行版自带，只读）'),
-      builtin.length
-        ? builtin.map(renderRow)
-        : React.createElement('div', { className: 'pmgr-empty' }, '无')
-    ),
-    React.createElement(
-      'div',
-      { className: 'pmgr-group' },
-      React.createElement('h3', { className: 'pmgr-group-title' }, '三方插件（可安装 / 卸载 / 启动 / 停用）'),
-      third.length
-        ? third.map(renderRow)
-        : React.createElement('div', { className: 'pmgr-empty' }, '无')
-    ),
+    // 三方插件（上移，默认展开）
+    React.createElement(PluginGroup, {
+      title: '三方插件',
+      count: third.length,
+      open: thirdOpen,
+      onToggle: () => setThirdOpen(!thirdOpen),
+      query: thirdQuery,
+      onQuery: setThirdQuery,
+      plugins: third,
+      renderRow,
+    }),
+    // 内置插件（默认收起）
+    React.createElement(PluginGroup, {
+      title: '内置插件',
+      count: builtin.length,
+      open: builtinOpen,
+      onToggle: () => setBuiltinOpen(!builtinOpen),
+      query: builtinQuery,
+      onQuery: setBuiltinQuery,
+      plugins: builtin,
+      renderRow,
+    }),
     React.createElement(
       'p',
       { className: 'pmgr-foot' },
-      '说明：安装 / 卸载通过 pnpm（dsh plugin）执行，重启后生效；停用 / 启动通过修改 profile 的 cordis.patch.yml（重启后生效，若当前进程 HMR 已激活则可能即时生效）。内置插件属于 DSH 发行版，不可修改。' +
+      '说明：安装 / 卸载通过 pnpm（dsh plugin）执行，重启后生效；停用 / 启动通过修改 profile 的 cordis.patch.yml（重启后生效，若当前进程 HMR 已激活则可能即时生效）。内置插件属于 DSH 发行版，只读。' +
       ' 三方插件的 GitHub 链接取自依赖声明或已安装包的 repository 字段。'
     )
   );

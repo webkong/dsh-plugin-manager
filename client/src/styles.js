@@ -19,6 +19,10 @@ const CSS = `
 .pmgr-btn.danger:hover:not(:disabled) { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
 .pmgr-btn.link { border: none; background: none; padding: 0 6px; color: var(--dsw-alias-brand-primary); text-decoration: underline; }
 .pmgr-group { display: flex; flex-direction: column; gap: 8px; }
+.pmgr-group-head { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 0; user-select: none; }
+.pmgr-group-head:hover .pmgr-group-title { color: var(--dsw-alias-label-primary); }
+.pmgr-group-toggle { font-size: 11px; color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary)); }
+.pmgr-search { height: 30px; font-size: 12px; }
 .pmgr-group-title { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin: 0; }
 .pmgr-card { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .pmgr-card-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
