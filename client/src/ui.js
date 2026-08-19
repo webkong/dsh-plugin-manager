@@ -188,7 +188,7 @@ export function PluginManagerTab() {
           text: (data && data.message) || (data && data.ok ? '完成' : '失败'),
         });
         if (data && data.output) setNotice((n) => ({ ...n, output: data.output }));
-        refresh(true);
+        if (!(data && data.restarting)) refresh(true);
       })
       .catch((e) => setNotice({ kind: 'err', text: String((e && e.message) || e) }))
       .finally(() => setBusy(null));
