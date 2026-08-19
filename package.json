@@ -27,7 +27,7 @@
   "homepage": "https://github.com/webkong/dsh-plugin-manager#readme",
   "scripts": {
     "build": "node build.mjs",
-    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/manager.js && node --check lib/handlers.js && node --check lib/shell.js && node --check lib/resolve.js && node --check lib/github.js && node --check lib/patch.js && node --check lib/entryIds.js && node --check lib/http.js && node --check lib/constants.js",
+    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/manager.js && node --check lib/handlers.js && node --check lib/fsutil.js && node --check lib/resolve.js && node --check lib/github.js && node --check lib/patch.js && node --check lib/entryIds.js && node --check lib/http.js && node --check lib/constants.js",
     "pretest": "pnpm build",
     "test": "node --test"
   },

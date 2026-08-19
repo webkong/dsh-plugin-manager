@@ -60,8 +60,8 @@ dsh-plugin-manager/
 │   ├── constants.js        # 路由前缀 / 停用标记 / 默认 profile
 │   ├── handlers.js         # HTTP 请求分发（list/install/uninstall/stop/start）
 │   ├── manager.js          # 业务层：清单与增删启停（依赖注入 shell 工具）
-│   ├── shell.js            # shell 执行 + profile 文件操作（显式注入 process.env）
-│   ├── resolve.js          # 双锚点包解析 / 包元数据读取
+│   ├── fsutil.js           # node:fs + child_process（继承 process.env，不依赖 shell 服务）
+│   ├── resolve.js          # 双锚点包解析 / 包元数据读取（进程内 createRequire）
 │   ├── entryIds.js         # bundle patch 装载条目 id 发现
 │   ├── github.js           # GitHub URL 提取 / 依赖来源判定
 │   ├── patch.js            # cordis.patch.yml 停用/启用文本操作
