@@ -52,11 +52,11 @@ export function PluginManagerTab() {
   const renderRow = (p) => {
     const stateBadge = p.missing
       ? React.createElement(Badge, { kind: 'state-missing' }, '失效')
-      : p.disabled
-        ? React.createElement(Badge, { kind: 'state-off' }, '已停用')
+      : p.enabled
+        ? React.createElement(Badge, { kind: 'state-on' }, '已启用')
         : p.mounted
-          ? React.createElement(Badge, { kind: 'state-on' }, '已装载')
-          : React.createElement(Badge, { kind: 'state-off' }, '未装载');
+          ? React.createElement(Badge, { kind: 'state-off' }, '已挂载')
+          : React.createElement(Badge, { kind: 'state-off' }, '已停用');
     const kindBadge = p.kind === 'builtin'
       ? React.createElement(Badge, { kind: 'kind-builtin' }, '内置')
       : React.createElement(Badge, { kind: 'kind-third' }, '三方');
@@ -166,7 +166,16 @@ export function PluginManagerTab() {
         ? React.createElement(Badge, null, 'profile: ' + d.profile + ' · ' + d.profileDir)
         : null,
       d && d.counts
-        ? React.createElement(Badge, null, '内置 ' + d.counts.builtin + ' / 三方 ' + d.counts.thirdParty + ' / 已停用 ' + d.counts.disabled)
+        ? React.createElement(Badge, null, '内置 ' + d.counts.builtin + ' / 三方 ' + d.counts.thirdParty)
+        : null,
+      d
+        ? React.createElement(
+            Badge,
+            null,
+            '已启用 ' + plugins.filter((q) => q.enabled).length +
+            ' · 已挂载 ' + plugins.filter((q) => q.mounted && q.disabled).length +
+            ' · 已停用 ' + plugins.filter((q) => !q.mounted && !q.missing).length
+          )
         : null,
       React.createElement(
         'button',
