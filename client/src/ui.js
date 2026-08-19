@@ -1,4 +1,5 @@
 // UI 组件：插件管理器标签页（React.createElement，无 JSX）
+// 卡片信息架构：Header（标题+状态+操作）/ 描述 / 来源 metadata
 import React from 'react';
 import { pmgr } from './api.js';
 
@@ -16,8 +17,92 @@ function fuzzyMatch(text, query) {
   return true;
 }
 
+// 依赖声明中的 ref（# 之后的 branch/commit）
+function refFromSpec(spec) {
+  if (!spec) return '';
+  const m = String(spec).match(/#([^@\s]+)$/);
+  return m ? m[1] : '';
+}
+
+function isCommitHash(ref) {
+  return /^[a-f0-9]{40}$/i.test(ref);
+}
+
+function shortRef(ref) {
+  if (!ref) return '';
+  return isCommitHash(ref) ? ref.slice(0, 8) : ref;
+}
+
+// githubUrl → owner/repo
+function repoFromUrl(url) {
+  const m = String(url || '').match(/github\.com\/([^/]+\/[^/?#]+)/);
+  return m ? m[1] : '';
+}
+
 export function Badge(props) {
   return React.createElement('span', { className: 'pmgr-badge ' + (props.kind || '') }, props.children);
+}
+
+// Runtime 状态：绿色小圆点 + 弱文字
+function RuntimeDot(props) {
+  const { phase } = props;
+  const active = phase === 'active';
+  return React.createElement(
+    'span',
+    { className: 'pmgr-runtime' },
+    React.createElement('span', { className: 'pmgr-dot' + (active ? '' : ' off') }),
+    active ? '运行中' : phase ? String(phase) : '未运行'
+  );
+}
+
+// 来源 metadata footer：GitHub · owner/repo · ref / npm / 本地
+function CardMeta(props) {
+  const { p } = props;
+  if (p.source === 'github' && p.githubUrl) {
+    const repo = repoFromUrl(p.githubUrl);
+    const ref = refFromSpec(p.spec);
+    const short = shortRef(ref);
+    return React.createElement(
+      'div',
+      { className: 'pmgr-card-meta' },
+      React.createElement('span', { className: 'pmgr-meta-label' }, '来源'),
+      React.createElement('span', { className: 'pmgr-meta-sep' }, '·'),
+      React.createElement(
+        'a',
+        { className: 'pmgr-meta-link', href: p.githubUrl, target: '_blank', rel: 'noreferrer', title: p.githubUrl },
+        'GitHub · ' + repo
+      ),
+      ref
+        ? React.createElement(
+            'span',
+            {
+              className: 'pmgr-meta-hash',
+              title: isCommitHash(ref) ? '完整 commit: ' + ref : '',
+            },
+            '· ' + short
+          )
+        : null
+    );
+  }
+  if (p.source === 'npm') {
+    return React.createElement(
+      'div',
+      { className: 'pmgr-card-meta' },
+      React.createElement('span', { className: 'pmgr-meta-label' }, '来源'),
+      React.createElement('span', { className: 'pmgr-meta-sep' }, '·'),
+      React.createElement('span', { className: 'pmgr-meta-hash' }, 'npm' + (p.name ? ' · ' + p.name : ''))
+    );
+  }
+  if (p.source === 'local') {
+    return React.createElement(
+      'div',
+      { className: 'pmgr-card-meta' },
+      React.createElement('span', { className: 'pmgr-meta-label' }, '来源'),
+      React.createElement('span', { className: 'pmgr-meta-sep' }, '·'),
+      React.createElement('span', null, '本地路径')
+    );
+  }
+  return null;
 }
 
 // 一个可折叠分组：标题 + 搜索框 + 过滤后的插件列表
@@ -99,24 +184,24 @@ export function PluginManagerTab() {
   const third = plugins.filter((p) => p.kind === 'third-party');
 
   const renderRow = (p) => {
+    // 状态：已启用（浅绿 Badge）/ 已停用（灰）/ 失效（红）
     const stateBadge = p.missing
-      ? React.createElement(Badge, { kind: 'state-missing' }, '失效')
+      ? React.createElement(Badge, { kind: 'missing' }, '失效')
       : p.enabled
-        ? React.createElement(Badge, { kind: 'state-on' }, '已启用')
-        : p.mounted
-          ? React.createElement(Badge, { kind: 'state-off' }, '已挂载')
-          : React.createElement(Badge, { kind: 'state-off' }, '已停用');
+        ? React.createElement(Badge, { kind: 'enabled' }, '已启用')
+        : React.createElement(Badge, { kind: 'stopped' }, '已停用');
+    // Runtime 圆点：仅挂载时显示
+    const runtimeDot = p.mounted && p.enabled && p.runtime
+      ? React.createElement(RuntimeDot, { phase: p.runtime.fiberPhase })
+      : null;
     const kindBadge = p.kind === 'builtin'
-      ? React.createElement(Badge, { kind: 'kind-builtin' }, '内置')
-      : React.createElement(Badge, { kind: 'kind-third' }, '三方');
+      ? React.createElement(Badge, null, '内置')
+      : React.createElement(Badge, null, '三方');
     const srcBadge = p.source === 'github'
       ? React.createElement(Badge, null, 'GitHub')
       : p.source === 'npm'
         ? React.createElement(Badge, null, 'npm')
         : null;
-    const phase = p.runtime && p.runtime.fiberPhase
-      ? React.createElement(Badge, null, '运行: ' + p.runtime.fiberPhase)
-      : null;
 
     const actions = [];
     if (p.kind === 'third-party') {
@@ -152,7 +237,7 @@ export function PluginManagerTab() {
           'button',
           {
             key: 'uninstall',
-            className: 'pmgr-btn danger',
+            className: 'pmgr-btn weak',
             disabled: busy !== null,
             onClick: () => {
               if (window.confirm('确定卸载插件 ' + p.name + ' 吗？（重启后不再装载）')) {
@@ -185,22 +270,37 @@ export function PluginManagerTab() {
     return React.createElement(
       'div',
       { key: p.name, className: 'pmgr-card' },
+      // 第一层：Header
       React.createElement(
         'div',
-        { className: 'pmgr-card-row' },
-        React.createElement('span', { className: 'pmgr-name' }, p.name),
-        p.version ? React.createElement('span', { className: 'pmgr-ver' }, p.version) : null,
-        kindBadge,
-        stateBadge,
-        srcBadge,
-        phase,
-        actions.length
-          ? React.createElement('div', { className: 'pmgr-actions' }, ...actions)
-          : null
+        { className: 'pmgr-card-header' },
+        React.createElement(
+          'div',
+          { className: 'pmgr-card-info' },
+          React.createElement(
+            'div',
+            { className: 'pmgr-card-title-row' },
+            React.createElement('span', { className: 'pmgr-name', title: p.name }, p.name),
+            p.version ? React.createElement('span', { className: 'pmgr-ver' }, p.version) : null
+          ),
+          React.createElement(
+            'div',
+            { className: 'pmgr-card-badges' },
+            kindBadge,
+            srcBadge,
+            stateBadge,
+            runtimeDot
+          )
+        ),
+        React.createElement('div', { className: 'pmgr-card-actions' }, ...actions)
       ),
-      p.description ? React.createElement('p', { className: 'pmgr-desc' }, p.description) : null,
-      p.spec && p.spec !== p.name ? React.createElement('p', { className: 'pmgr-desc' }, '来源: ' + p.spec) : null,
-      busyThis ? React.createElement('p', { className: 'pmgr-desc' }, '处理中…') : null
+      // 第二层：描述（无描述不渲染，避免空白占位）
+      p.description
+        ? React.createElement('p', { className: 'pmgr-card-desc', title: p.description }, p.description)
+        : null,
+      // 第三层：来源 metadata
+      React.createElement(CardMeta, { p }),
+      busyThis ? React.createElement('p', { className: 'pmgr-foot' }, '处理中…') : null
     );
   };
 
@@ -222,8 +322,8 @@ export function PluginManagerTab() {
             Badge,
             null,
             '已启用 ' + plugins.filter((q) => q.enabled).length +
-            ' · 已挂载 ' + plugins.filter((q) => q.mounted && q.disabled).length +
-            ' · 已停用 ' + plugins.filter((q) => !q.mounted && !q.missing).length
+            ' · 已停用 ' + plugins.filter((q) => !q.enabled && !q.missing).length +
+            ' · 失效 ' + plugins.filter((q) => q.missing).length
           )
         : null,
       React.createElement(
@@ -246,7 +346,7 @@ export function PluginManagerTab() {
       }),
       React.createElement(
         'button',
-        { className: 'pmgr-btn primary', disabled: busy !== null || !spec.trim(), onClick: doInstall },
+        { className: 'pmgr-btn', disabled: busy !== null || !spec.trim(), onClick: doInstall },
         busy === 'install' ? '安装中…' : '安装'
       )
     ),
