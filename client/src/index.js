@@ -1,4 +1,4 @@
-// Client 入口：注入样式、注册「设置 → 插件 → 管理」标签页
+// Client 入口：注入样式、注册「设置 → 插件 → 插件管理」标签页
 import React from 'react';
 import { injectStyles } from './styles.js';
 import { PluginManagerTab } from './ui.js';
@@ -15,7 +15,7 @@ export function apply(ctx) {
         name: 'settings.plugins.tab',
         id: 'pm-manage',
         order: 20,
-        label: () => '管理',
+        label: () => '插件管理',
       },
       () => React.createElement(PluginManagerTab, null)
     )
