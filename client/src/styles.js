@@ -29,6 +29,7 @@ const CSS = `
 
 /* 轻量 Badge：默认中性灰；已启用浅绿底深绿字；停用/失效弱化 */
 .pmgr-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px; font-size: 11px; line-height: 1; color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-1); white-space: nowrap; }
+.pmgr-badge.kind-third { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l2)); }
 .pmgr-badge.enabled { color: var(--dsw-alias-state-success-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 35%, var(--dsw-alias-border-l2)); background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, var(--dsw-alias-bg-layer-1)); }
 .pmgr-badge.stopped { color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary)); }
 .pmgr-badge.missing { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 35%, var(--dsw-alias-border-l2)); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, var(--dsw-alias-bg-layer-1)); }
@@ -60,6 +61,8 @@ const CSS = `
 .pmgr-meta-link { color: inherit; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pmgr-meta-link:hover { color: var(--dsw-alias-brand-primary); text-decoration: underline; }
 .pmgr-meta-hash { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; }
+.pmgr-meta-gh { margin-left: auto; font-size: 11px; color: var(--dsw-alias-brand-primary); text-decoration: none; white-space: nowrap; }
+.pmgr-meta-gh:hover { text-decoration: underline; }
 
 .pmgr-notice { font-size: 12px; border-radius: 8px; padding: 8px 10px; line-height: 1.5; }
 .pmgr-notice.ok { color: var(--dsw-alias-state-success-primary); background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l1); }

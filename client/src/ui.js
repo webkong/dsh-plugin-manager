@@ -55,54 +55,61 @@ function RuntimeDot(props) {
   );
 }
 
-// 来源 metadata footer：GitHub · owner/repo · ref / npm / 本地
+// 来源 metadata footer：GitHub · owner/repo · ref / npm / 本地；末尾追加 GitHub ↗ 跳转（小号）
 function CardMeta(props) {
   const { p } = props;
+  const ghLink = p.githubUrl
+    ? React.createElement(
+        'a',
+        {
+          key: 'gh',
+          className: 'pmgr-meta-gh',
+          href: p.githubUrl,
+          target: '_blank',
+          rel: 'noreferrer',
+          title: p.githubUrl,
+        },
+        'GitHub ↗'
+      )
+    : null;
+  const meta = [];
   if (p.source === 'github' && p.githubUrl) {
     const repo = repoFromUrl(p.githubUrl);
     const ref = refFromSpec(p.spec);
     const short = shortRef(ref);
-    return React.createElement(
-      'div',
-      { className: 'pmgr-card-meta' },
-      React.createElement('span', { className: 'pmgr-meta-label' }, '来源'),
-      React.createElement('span', { className: 'pmgr-meta-sep' }, '·'),
+    meta.push(
+      React.createElement('span', { key: 'label', className: 'pmgr-meta-label' }, '来源'),
+      React.createElement('span', { key: 'sep1', className: 'pmgr-meta-sep' }, '·'),
       React.createElement(
         'a',
-        { className: 'pmgr-meta-link', href: p.githubUrl, target: '_blank', rel: 'noreferrer', title: p.githubUrl },
+        { key: 'repo', className: 'pmgr-meta-link', href: p.githubUrl, target: '_blank', rel: 'noreferrer', title: p.githubUrl },
         'GitHub · ' + repo
-      ),
-      ref
-        ? React.createElement(
-            'span',
-            {
-              className: 'pmgr-meta-hash',
-              title: isCommitHash(ref) ? '完整 commit: ' + ref : '',
-            },
-            '· ' + short
-          )
-        : null
+      )
+    );
+    if (ref) {
+      meta.push(
+        React.createElement(
+          'span',
+          { key: 'ref', className: 'pmgr-meta-hash', title: isCommitHash(ref) ? '完整 commit: ' + ref : '' },
+          '· ' + short
+        )
+      );
+    }
+  } else if (p.source === 'npm') {
+    meta.push(
+      React.createElement('span', { key: 'label', className: 'pmgr-meta-label' }, '来源'),
+      React.createElement('span', { key: 'sep1', className: 'pmgr-meta-sep' }, '·'),
+      React.createElement('span', { key: 'body', className: 'pmgr-meta-hash' }, 'npm' + (p.name ? ' · ' + p.name : ''))
+    );
+  } else if (p.source === 'local') {
+    meta.push(
+      React.createElement('span', { key: 'label', className: 'pmgr-meta-label' }, '来源'),
+      React.createElement('span', { key: 'sep1', className: 'pmgr-meta-sep' }, '·'),
+      React.createElement('span', { key: 'body' }, '本地路径')
     );
   }
-  if (p.source === 'npm') {
-    return React.createElement(
-      'div',
-      { className: 'pmgr-card-meta' },
-      React.createElement('span', { className: 'pmgr-meta-label' }, '来源'),
-      React.createElement('span', { className: 'pmgr-meta-sep' }, '·'),
-      React.createElement('span', { className: 'pmgr-meta-hash' }, 'npm' + (p.name ? ' · ' + p.name : ''))
-    );
-  }
-  if (p.source === 'local') {
-    return React.createElement(
-      'div',
-      { className: 'pmgr-card-meta' },
-      React.createElement('span', { className: 'pmgr-meta-label' }, '来源'),
-      React.createElement('span', { className: 'pmgr-meta-sep' }, '·'),
-      React.createElement('span', null, '本地路径')
-    );
-  }
-  return null;
+  if (ghLink) meta.push(ghLink);
+  return meta.length ? React.createElement('div', { className: 'pmgr-card-meta' }, ...meta) : null;
 }
 
 // 一个可折叠分组：标题 + 搜索框 + 过滤后的插件列表
@@ -196,7 +203,7 @@ export function PluginManagerTab() {
       : null;
     const kindBadge = p.kind === 'builtin'
       ? React.createElement(Badge, null, '内置')
-      : React.createElement(Badge, null, '三方');
+      : React.createElement(Badge, { kind: 'kind-third' }, '第三方');
     const srcBadge = p.source === 'github'
       ? React.createElement(Badge, null, 'GitHub')
       : p.source === 'npm'
@@ -249,23 +256,6 @@ export function PluginManagerTab() {
         )
       );
     }
-    if (p.githubUrl) {
-      actions.push(
-        React.createElement(
-          'a',
-          {
-            key: 'gh',
-            className: 'pmgr-btn link',
-            href: p.githubUrl,
-            target: '_blank',
-            rel: 'noreferrer',
-            title: p.githubUrl,
-          },
-          'GitHub ↗'
-        )
-      );
-    }
-
     const busyThis = busy === p.name || busy === 'install';
     return React.createElement(
       'div',
