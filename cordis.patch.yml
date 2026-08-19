@@ -1,4 +1,4 @@
 # dsh-plugin-manager bundle patch: 装载插件管理器
 - insert:
     - id: pmgr
-      name: 'dsh-plugin-manager'
+      name: '@webkong/dsh-plugin-manager'

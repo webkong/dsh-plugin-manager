@@ -15,7 +15,7 @@ const result = await build({
 
 const code = result.outputFiles[0].text
 const wrapped = `window.__ModuleLoader__.load({
-  id: 'dsh-plugin-manager',
+  id: '@webkong/dsh-plugin-manager',
   factory: (require) => {
     var module = { exports: {} };
     var exports = module.exports;
