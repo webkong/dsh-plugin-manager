@@ -13,10 +13,11 @@ export async function call(path, body) {
   return data;
 }
 
+// 各方法接收「请求体对象」直接透传（如 { name } / { spec }），避免二次包装
 export const pmgr = {
   list: () => call('/pmgr/list'),
-  install: (spec) => call('/pmgr/install', { spec }),
-  uninstall: (name) => call('/pmgr/uninstall', { name }),
-  stop: (name) => call('/pmgr/stop', { name }),
-  start: (name) => call('/pmgr/start', { name }),
+  install: (payload) => call('/pmgr/install', payload),
+  uninstall: (payload) => call('/pmgr/uninstall', payload),
+  stop: (payload) => call('/pmgr/stop', payload),
+  start: (payload) => call('/pmgr/start', payload),
 };
