@@ -206,6 +206,10 @@ export function PluginManagerTab() {
     act('install', { spec: spec.trim() }, 'install');
   };
 
+  const d = state.data;
+  const plugins = d && d.plugins ? d.plugins : [];
+  const builtin = plugins.filter((p) => p.kind === 'builtin');
+  const third = plugins.filter((p) => p.kind === 'third-party');
   const autoRestart = !!(d && d.settings && d.settings.autoRestart);
   const toggleAutoRestart = () => {
     setBusy('settings');
@@ -234,10 +238,6 @@ export function PluginManagerTab() {
       .finally(() => setBusy(null));
   };
 
-  const d = state.data;
-  const plugins = d && d.plugins ? d.plugins : [];
-  const builtin = plugins.filter((p) => p.kind === 'builtin');
-  const third = plugins.filter((p) => p.kind === 'third-party');
 
   const renderRow = (p) => {
     // 状态：已启用（浅绿 Badge）/ 已停用（灰）/ 失效（红）
