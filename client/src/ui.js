@@ -320,7 +320,12 @@ export function PluginManagerTab() {
         React.createElement('h2', { className: 'pmgr-title' }, 'DSH 插件管理器'),
         d && d.profile
           ? React.createElement(Badge, null, 'profile: ' + d.profile + ' · ' + d.profileDir)
-          : null
+          : null,
+        React.createElement(
+          'button',
+          { className: 'pmgr-btn', disabled: state.loading, onClick: () => refresh(false) },
+          '刷新'
+        )
       ),
       React.createElement(
         'div',
@@ -336,12 +341,7 @@ export function PluginManagerTab() {
               ' · 已停用 ' + plugins.filter((q) => !q.enabled && !q.missing).length +
               ' · 失效 ' + plugins.filter((q) => q.missing).length
             )
-          : null,
-        React.createElement(
-          'button',
-          { className: 'pmgr-btn', disabled: state.loading, onClick: () => refresh(false) },
-          '刷新'
-        )
+          : null
       )
     ),
     React.createElement(

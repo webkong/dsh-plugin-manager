@@ -4,8 +4,8 @@ const CSS = `
 .pmgr-root { display: flex; flex-direction: column; gap: 14px; padding: 4px 2px 24px; }
 .pmgr-head { display: flex; flex-direction: column; gap: 8px; }
 .pmgr-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.pmgr-title-row .pmgr-btn { margin-left: auto; }
 .pmgr-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.pmgr-status-row .pmgr-btn { margin-left: auto; }
 .pmgr-title { font-size: 15px; font-weight: 600; color: var(--dsw-alias-label-primary); margin: 0; }
 .pmgr-install { display: flex; gap: 8px; align-items: center; }
 .pmgr-input { flex: 1; min-width: 0; height: 30px; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border-radius: 6px; padding: 0 12px; font-size: 12px; }
