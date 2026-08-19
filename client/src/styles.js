@@ -5,9 +5,10 @@ const CSS = `
 .pmgr-head { display: flex; flex-direction: column; gap: 8px; }
 .pmgr-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .pmgr-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pmgr-status-row .pmgr-btn { margin-left: auto; }
 .pmgr-title { font-size: 15px; font-weight: 600; color: var(--dsw-alias-label-primary); margin: 0; }
 .pmgr-install { display: flex; gap: 8px; align-items: center; }
-.pmgr-input { flex: 1; min-width: 0; height: 34px; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border-radius: 8px; padding: 0 12px; font-size: 13px; }
+.pmgr-input { flex: 1; min-width: 0; height: 30px; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border-radius: 6px; padding: 0 12px; font-size: 12px; }
 .pmgr-input:focus { outline: none; border-color: var(--dsw-alias-brand-primary); }
 .pmgr-group { display: flex; flex-direction: column; gap: 12px; }
 .pmgr-group-head { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 0; user-select: none; }
@@ -43,7 +44,7 @@ const CSS = `
 
 /* 操作区：停用/启动 secondary；卸载弱化文字按钮；GitHub 轻量链接 */
 .pmgr-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.pmgr-btn { height: 32px; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border-radius: 8px; padding: 0 12px; font-size: 12px; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
+.pmgr-btn { height: 28px; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border-radius: 6px; padding: 0 12px; font-size: 12px; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; }
 .pmgr-btn:hover:not(:disabled) { border-color: var(--dsw-alias-brand-primary); color: var(--dsw-alias-brand-primary); }
 .pmgr-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
 .pmgr-btn:disabled { opacity: 0.55; cursor: default; }
