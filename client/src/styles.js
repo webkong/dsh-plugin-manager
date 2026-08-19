@@ -22,7 +22,8 @@ const CSS = `
 .pmgr-group-head { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 0; user-select: none; }
 .pmgr-group-head:hover .pmgr-group-title { color: var(--dsw-alias-label-primary); }
 .pmgr-group-toggle { font-size: 11px; color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary)); }
-.pmgr-search { height: 30px; font-size: 12px; }
+/* 搜索框与安装输入框（.pmgr-input）样式一致；组内为纵向 flex，禁掉 flex:1 防止纵向拉伸，宽度靠 cross-axis stretch 撑满 */
+.pmgr-search { flex: none; }
 .pmgr-group-title { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin: 0; }
 .pmgr-card { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .pmgr-card-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
