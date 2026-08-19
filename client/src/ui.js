@@ -161,7 +161,7 @@ export function PluginManagerTab() {
   const [state, setState] = React.useState({ loading: true, error: null, data: null });
   const [busy, setBusy] = React.useState(null);
   const [spec, setSpec] = React.useState('');
-  const [notice, setNotice] = React.useState(null);
+  const [modal, setModal] = React.useState(null);
   const [thirdOpen, setThirdOpen] = React.useState(true);
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const [thirdQuery, setThirdQuery] = React.useState('');
@@ -178,25 +178,60 @@ export function PluginManagerTab() {
     refresh(true);
   }, []);
 
+  const METHOD_LABELS = { install: '安装', uninstall: '卸载', stop: '停用', start: '启动', setSettings: '设置', restart: '重启' };
+
   const act = (method, args, label) => {
     setBusy(label);
-    setNotice(null);
+    setModal(null);
     pmgr[method](args)
       .then((data) => {
-        setNotice({
-          kind: data && data.ok ? 'ok' : 'err',
-          text: (data && data.message) || (data && data.ok ? '完成' : '失败'),
-        });
-        if (data && data.output) setNotice((n) => ({ ...n, output: data.output }));
-        if (!(data && data.restarting)) refresh(true);
+        const name = METHOD_LABELS[method] || method;
+        if (data && data.ok) {
+          if (data.restarting) {
+            setModal({ kind: 'ok', title: name + '成功', text: data.message || '', output: data.output || null });
+          } else {
+            setModal({ kind: 'ok', title: name + '成功', text: data.message || '完成', output: data.output || null, pendingRestart: method === 'install' || method === 'uninstall' });
+            refresh(true);
+          }
+        } else {
+          setModal({ kind: 'err', title: name + '失败', text: (data && data.message) || '操作失败', output: (data && data.output) || null });
+        }
       })
-      .catch((e) => setNotice({ kind: 'err', text: String((e && e.message) || e) }))
+      .catch((e) => setModal({ kind: 'err', title: '操作失败', text: String((e && e.message) || e), output: null }))
       .finally(() => setBusy(null));
   };
 
   const doInstall = () => {
     if (!spec.trim()) return;
     act('install', { spec: spec.trim() }, 'install');
+  };
+
+  const autoRestart = !!(d && d.settings && d.settings.autoRestart);
+  const toggleAutoRestart = () => {
+    setBusy('settings');
+    pmgr.setSettings({ autoRestart: !autoRestart })
+      .then((res) => {
+        if (res && res.ok && res.settings) {
+          setState((prev) => ({ ...prev, data: { ...prev.data, settings: res.settings } }));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setBusy(null));
+  };
+
+  const doRestartNow = () => {
+    setModal(null);
+    setBusy('restart');
+    pmgr.restart()
+      .then((res) => {
+        if (res && res.ok) {
+          setModal({ kind: 'ok', title: '重启中', text: res.message || '正在重启 dsh web…', output: null });
+        } else {
+          setModal({ kind: 'err', title: '重启失败', text: (res && res.message) || '无法触发重启', output: null });
+        }
+      })
+      .catch((e) => setModal({ kind: 'err', title: '重启失败', text: String((e && e.message) || e), output: null }))
+      .finally(() => setBusy(null));
   };
 
   const d = state.data;
@@ -341,7 +376,24 @@ export function PluginManagerTab() {
               ' · 已停用 ' + plugins.filter((q) => !q.enabled && !q.missing).length +
               ' · 失效 ' + plugins.filter((q) => q.missing).length
             )
-          : null
+          : null,
+        React.createElement(
+          'label',
+          { className: 'pmgr-toggle' },
+          React.createElement('span', { className: 'pmgr-toggle-label' }, '自动重启'),
+          React.createElement(
+            'button',
+            {
+              type: 'button',
+              role: 'switch',
+              'aria-checked': autoRestart,
+              className: 'pmgr-switch' + (autoRestart ? ' on' : ''),
+              disabled: busy !== null,
+              onClick: toggleAutoRestart,
+            },
+            React.createElement('span', { className: 'pmgr-switch-knob' })
+          )
+        )
       )
     ),
     React.createElement(
@@ -362,14 +414,6 @@ export function PluginManagerTab() {
         busy === 'install' ? '安装中…' : '安装'
       )
     ),
-    notice
-      ? React.createElement(
-          'div',
-          { className: 'pmgr-notice ' + notice.kind },
-          notice.text,
-          notice.output ? React.createElement('pre', { className: 'pmgr-output' }, notice.output) : null
-        )
-      : null,
     state.error
       ? React.createElement('div', { className: 'pmgr-notice err' }, String(state.error))
       : null,
@@ -398,6 +442,34 @@ export function PluginManagerTab() {
       plugins: builtin,
       renderRow,
     }),
+    modal
+      ? React.createElement(
+          'div',
+          { className: 'pmgr-modal-backdrop', onClick: () => setModal(null) },
+          React.createElement(
+            'div',
+            { className: 'pmgr-modal' + (modal.kind === 'err' ? ' err' : ''), onClick: (e) => e.stopPropagation() },
+            React.createElement(
+              'div',
+              { className: 'pmgr-modal-head' },
+              React.createElement('h3', { className: 'pmgr-modal-title' }, modal.title),
+              React.createElement('button', { className: 'pmgr-modal-close', onClick: () => setModal(null), 'aria-label': '关闭' }, '×')
+            ),
+            React.createElement('div', { className: 'pmgr-modal-body' },
+              React.createElement('p', { className: 'pmgr-modal-text' }, modal.text),
+              modal.output ? React.createElement('pre', { className: 'pmgr-output' }, modal.output) : null
+            ),
+            React.createElement(
+              'div',
+              { className: 'pmgr-modal-actions' },
+              modal.pendingRestart
+                ? React.createElement('button', { className: 'pmgr-btn', onClick: doRestartNow, disabled: busy !== null }, '立即重启')
+                : null,
+              React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm', onClick: () => setModal(null) }, '确定')
+            )
+          )
+        )
+      : null,
     React.createElement(
       'p',
       { className: 'pmgr-foot' },

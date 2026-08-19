@@ -20,4 +20,6 @@ export const pmgr = {
   uninstall: (payload) => call('/pmgr/uninstall', payload),
   stop: (payload) => call('/pmgr/stop', payload),
   start: (payload) => call('/pmgr/start', payload),
+  setSettings: (payload) => call('/pmgr/settings', payload),
+  restart: () => call('/pmgr/restart'),
 };

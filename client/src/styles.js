@@ -7,6 +7,25 @@ const CSS = `
 .pmgr-title-row .pmgr-btn { margin-left: auto; }
 .pmgr-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .pmgr-title { font-size: 15px; font-weight: 600; color: var(--dsw-alias-label-primary); margin: 0; }
+.pmgr-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.pmgr-toggle-label { font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.pmgr-switch { position: relative; width: 34px; height: 19px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); cursor: pointer; padding: 0; transition: background 0.15s ease, border-color 0.15s ease; }
+.pmgr-switch.on { background: var(--dsw-alias-brand-primary); border-color: var(--dsw-alias-brand-primary); }
+.pmgr-switch:disabled { opacity: 0.6; cursor: default; }
+.pmgr-switch-knob { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: left 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.pmgr-switch.on .pmgr-switch-knob { left: 17px; }
+
+/* 弹窗 */
+.pmgr-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.pmgr-modal { width: min(480px, calc(100vw - 48px)); max-height: 75vh; overflow: auto; background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.2); }
+.pmgr-modal.err { border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l2)); }
+.pmgr-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pmgr-modal-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+.pmgr-modal-close { border: none; background: none; font-size: 18px; line-height: 1; color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary)); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.pmgr-modal-close:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-2); }
+.pmgr-modal-body { display: flex; flex-direction: column; gap: 8px; }
+.pmgr-modal-text { margin: 0; font-size: 13px; line-height: 1.55; color: var(--dsw-alias-label-primary); white-space: pre-wrap; word-break: break-word; }
+.pmgr-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .pmgr-install { display: flex; gap: 8px; align-items: center; }
 .pmgr-input { flex: 1; min-width: 0; height: 30px; border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border-radius: 6px; padding: 0 12px; font-size: 12px; }
 .pmgr-input:focus { outline: none; border-color: var(--dsw-alias-brand-primary); }
