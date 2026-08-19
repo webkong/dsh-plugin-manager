@@ -112,10 +112,17 @@ function CardMeta(props) {
   return meta.length ? React.createElement('div', { className: 'pmgr-card-meta' }, ...meta) : null;
 }
 
-// 一个可折叠分组：标题 + 搜索框 + 过滤后的插件列表
+// 一个可折叠分组：标题 + 搜索框 + 按状态分子组（运行中 / 已停用 / 失效）
 function PluginGroup(props) {
   const { title, count, open, onToggle, query, onQuery, plugins, renderRow } = props;
   const filtered = plugins.filter((p) => fuzzyMatch(p.name + ' ' + (p.description || ''), query));
+  const running = filtered.filter((p) => !p.missing && p.enabled);
+  const stopped = filtered.filter((p) => !p.missing && !p.enabled);
+  const missing = filtered.filter((p) => p.missing);
+  const sections = [];
+  if (running.length) sections.push({ key: 'running', label: '运行中', list: running });
+  if (stopped.length) sections.push({ key: 'stopped', label: '已停用', list: stopped });
+  if (missing.length) sections.push({ key: 'missing', label: '失效', list: missing });
   return React.createElement(
     'div',
     { className: 'pmgr-group' },
@@ -135,8 +142,15 @@ function PluginGroup(props) {
             value: query,
             onChange: (e) => onQuery(e.target.value),
           }),
-          filtered.length
-            ? filtered.map(renderRow)
+          sections.length
+            ? sections.map((sec) =>
+                React.createElement(
+                  'div',
+                  { key: sec.key, className: 'pmgr-sub' },
+                  React.createElement('h4', { className: 'pmgr-sub-title' }, sec.label + '（' + sec.list.length + '）'),
+                  sec.list.map(renderRow)
+                )
+              )
             : React.createElement('div', { className: 'pmgr-empty' }, '无匹配')
         )
       : null

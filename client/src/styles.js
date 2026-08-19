@@ -17,6 +17,9 @@ const CSS = `
 /* 搜索框与安装输入框（.pmgr-input）样式一致；组内为纵向 flex，禁掉 flex:1 防止纵向拉伸 */
 .pmgr-search { flex: none; }
 .pmgr-group-title { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin: 0; }
+.pmgr-sub { display: flex; flex-direction: column; gap: 8px; }
+.pmgr-sub-title { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary)); margin: 2px 0 0; }
+.pmgr-sub-title::after { content: ''; flex: 1; height: 1px; background: var(--dsw-alias-border-l1); }
 
 /* ---------- 卡片 ---------- */
 .pmgr-card { border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; transition: border-color 0.15s ease; }
