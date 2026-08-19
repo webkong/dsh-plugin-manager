@@ -54,7 +54,7 @@ export function PluginManagerTab() {
       ? React.createElement(Badge, { kind: 'state-missing' }, '失效')
       : p.disabled
         ? React.createElement(Badge, { kind: 'state-off' }, '已停用')
-        : p.inBundles
+        : p.mounted
           ? React.createElement(Badge, { kind: 'state-on' }, '已装载')
           : React.createElement(Badge, { kind: 'state-off' }, '未装载');
     const kindBadge = p.kind === 'builtin'
@@ -71,7 +71,7 @@ export function PluginManagerTab() {
 
     const actions = [];
     if (p.kind === 'third-party') {
-      if (p.inBundles) {
+      if (p.mounted) {
         actions.push(
           React.createElement(
             'button',

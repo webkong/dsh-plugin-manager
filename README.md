@@ -4,7 +4,7 @@ DSH 插件管理器：在 Web 设置页（设置 → 插件 → **管理**）列
 
 ## 功能
 
-- **内置 vs 三方**：`@deepseek-ai/*`（从 dsh 安装目录解析）判定为内置、只读；从 profile 解析的为三方、可管理
+- **内置 vs 三方**：以 Loader 实时行为主枚举全部内置插件（约 150+ 行），并叠加安装/共享目录中的 `@deepseek-ai/*` 包；profile dependencies 中的为三方、可管理
 - **安装**：`dsh plugin --profile web add <spec>`（npm 包名 / `github:owner/repo#main` / 任意 pnpm 标识）
 - **卸载**：`dsh plugin --profile web remove <name>`，并清理残留停用条目
 - **停用 / 启动**：解析三方插件 bundle 的 `cordis.patch.yml` 找到装载条目 id，向 profile 的
