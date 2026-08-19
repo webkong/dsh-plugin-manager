@@ -48,7 +48,7 @@ pnpm test         # node --test 纯函数单元测试（pretest 自动 build）
 # 3. 改代码 → 重启 dsh web → 在「管理」标签页验证 → 迭代
 ```
 
-### 结构（模块化，参考 @deepseek-ai/dsh-plugin-console 设计）
+### 结构（模块化）
 
 ```
 dsh-plugin-manager/
