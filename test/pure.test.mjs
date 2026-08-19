@@ -1,16 +1,9 @@
-// dsh-plugin-manager 纯函数单元测试（node --test）
+// dsh-plugin-manager 纯函数单元测试（node --test，零外部依赖）
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  findEntryIds,
-  githubUrlFromSpec,
-  githubUrlFromRepo,
-  specSource,
-  patchHasStop,
-  patchWithStop,
-  patchWithoutStop,
-  stopAddition,
-} from '../lib/index.js'
+import { findEntryIds } from '../lib/entryIds.js'
+import { githubUrlFromSpec, githubUrlFromRepo, specSource } from '../lib/github.js'
+import { patchHasStop, patchWithStop, patchWithoutStop, stopAddition } from '../lib/patch.js'
 
 const MARKER = 'dsh-plugin-manager'
 const TEMPLATE = `# Your patch layer for this dsh profile, applied after every bundle layer:

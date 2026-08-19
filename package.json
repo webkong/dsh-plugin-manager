@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-manager",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "DSH 插件管理器：在 Web 设置页列出内置/三方插件，支持安装、卸载、启动、停用，并直跳三方插件 GitHub 仓库。",
   "license": "MIT",
   "keywords": [
@@ -26,7 +26,9 @@
   },
   "homepage": "https://github.com/webkong/dsh-plugin-manager#readme",
   "scripts": {
-    "check": "node --check lib/index.js && node --check lib/client.js",
+    "build": "node build.mjs",
+    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/manager.js && node --check lib/handlers.js && node --check lib/shell.js && node --check lib/resolve.js && node --check lib/github.js && node --check lib/patch.js && node --check lib/entryIds.js && node --check lib/http.js && node --check lib/constants.js",
+    "pretest": "pnpm build",
     "test": "node --test"
   },
   "dsh": {
@@ -46,5 +48,8 @@
     "cordis.patch.yml",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
 }

@@ -40,21 +40,40 @@ dsh plugin --profile web add github:webkong/dsh-plugin-manager#main
 # 1. 本地安装到 profile（link 指向本项目）
 dsh plugin --profile web add /path/to/dsh-plugin-manager
 
-# 2. 校验与测试
-pnpm check        # node --check 两个半部
-pnpm test         # node --test 纯函数单元测试
+# 2. 构建 / 校验 / 测试
+pnpm build        # esbuild 打包 client/src → lib/client.js
+pnpm check        # node --check 全部模块
+pnpm test         # node --test 纯函数单元测试（pretest 自动 build）
 
 # 3. 改代码 → 重启 dsh web → 在「管理」标签页验证 → 迭代
 ```
 
-### 结构
+### 结构（模块化，参考 @deepseek-ai/dsh-plugin-console 设计）
 
-| 文件 | 作用 |
-| --- | --- |
-| `lib/index.js` | Host 半部：`webServer` 前缀路由 `/pmgr/*`（HTTP API，与 `@deepseek-ai/dsh-plugin-console` 同方案），管理逻辑基于 profile manifest / cordis.patch.yml / dsh CLI；纯函数导出供测试 |
-| `lib/client.js` | Client 半部：`window.__ModuleLoader__` 单文件 bundle，注册 `settings.plugins.tab`「管理」标签页，用浏览器 `fetch` 调 `/pmgr/*` |
-| `cordis.patch.yml` | bundle patch：装载 `pmgr` 行 |
-| `test/pure.test.mjs` | 纯函数单元测试（entry-id 发现 / GitHub URL / patch 文本操作） |
+```
+dsh-plugin-manager/
+├── package.json            # dsh.bundle / dsh.client 声明，scripts（build/check/test）
+├── cordis.patch.yml        # bundle patch：装载 pmgr 行
+├── build.mjs               # esbuild 打包 client/src → lib/client.js
+├── lib/                    # Host 半部（零外部依赖，纯 ESM + node 内置）
+│   ├── index.js            # 入口：name/inject/apply + webServer 路由注册（薄壳）
+│   ├── constants.js        # 路由前缀 / 停用标记 / 默认 profile
+│   ├── handlers.js         # HTTP 请求分发（list/install/uninstall/stop/start）
+│   ├── manager.js          # 业务层：清单与增删启停（依赖注入 shell 工具）
+│   ├── shell.js            # shell 执行 + profile 文件操作（显式注入 process.env）
+│   ├── resolve.js          # 双锚点包解析 / 包元数据读取
+│   ├── entryIds.js         # bundle patch 装载条目 id 发现
+│   ├── github.js           # GitHub URL 提取 / 依赖来源判定
+│   ├── patch.js            # cordis.patch.yml 停用/启用文本操作
+│   └── http.js             # JSON 响应 / 请求体 / loopback 校验
+├── client/src/             # Client 源码（模块化，构建为单 bundle）
+│   ├── index.js            # apply 入口 + slots 注册
+│   ├── api.js              # fetch 封装 + pmgr 方法表
+│   ├── styles.js           # CSS 注入
+│   └── ui.js               # Badge / PluginManagerTab（React.createElement）
+└── test/
+    └── pure.test.mjs       # 纯函数单元测试（直接 import lib/* 模块）
+```
 
 ### 通信契约
 
