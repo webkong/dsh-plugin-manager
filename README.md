@@ -1,3 +1,5 @@
+[English](./README.en.md) · 中文
+
 # dsh-plugin-manager
 
 一个用于 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) 的插件管理器，在 Web 设置页提供「插件管理」页签：列出**内置 / 三方**插件，支持**安装、卸载、启动、停用**，并直跳三方插件的 GitHub 仓库。

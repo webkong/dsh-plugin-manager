@@ -1,3 +1,5 @@
+中文 | [English](./README.en.md)
+
 # dsh-plugin-manager
 
 A plugin manager for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness). It adds a **Plugin Manager** page to the Web settings: list **built-in / third-party** plugins, **install, uninstall, start, stop**, and jump straight to a third-party plugin's GitHub repository.
