@@ -300,16 +300,6 @@ export function PluginManagerTab(props) {
         )
       );
     }
-    if (p.githubUrl) {
-      actions.push(
-        React.createElement(
-          'a',
-          { key: 'gh', className: 'pmgr-meta-gh', href: p.githubUrl, target: '_blank', rel: 'noreferrer', title: p.githubUrl },
-          'GitHub ↗'
-        )
-      );
-    }
-
     const busyThis = busy === p.name || busy === 'install';
     return React.createElement(
       'div',
