@@ -21,5 +21,6 @@ export const pmgr = {
   stop: (payload) => call('/pmgr/stop', payload),
   start: (payload) => call('/pmgr/start', payload),
   setSettings: (payload) => call('/pmgr/settings', payload),
+  search: (payload) => call('/pmgr/search', payload),
   restart: () => call('/pmgr/restart', {}),
 };

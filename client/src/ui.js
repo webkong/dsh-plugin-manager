@@ -167,6 +167,9 @@ export function PluginManagerTab(props) {
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const [thirdQuery, setThirdQuery] = React.useState('');
   const [builtinQuery, setBuiltinQuery] = React.useState('');
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [searchResults, setSearchResults] = React.useState(null);
+  const [searching, setSearching] = React.useState(false);
 
   const refresh = (silent) => {
     if (!silent) setState((s) => ({ ...s, loading: true, error: null }));
@@ -212,6 +215,18 @@ export function PluginManagerTab(props) {
   const doInstall = () => {
     if (!spec.trim()) return;
     act('install', { spec: spec.trim() }, 'install', t('installing'));
+  };
+
+  const doSearch = () => {
+    setSearching(true);
+    pmgr.search({ q: searchQuery })
+      .then((data) => setSearchResults(data))
+      .catch((e) => setSearchResults({ ok: false, message: String((e && e.message) || e), items: [] }))
+      .finally(() => setSearching(false));
+  };
+
+  const installFromSearch = (r) => {
+    act('install', { spec: 'github:' + r.fullName + '#' + r.defaultBranch }, 'install', t('installing'));
   };
 
   const autoRestart = !!(d && d.settings && d.settings.autoRestart);
@@ -421,6 +436,57 @@ export function PluginManagerTab(props) {
         )
       )
     ),
+    React.createElement('h3', { className: 'pmgr-section-title' }, t('searchTitle')),
+    React.createElement(
+      'div',
+      { className: 'pmgr-install' },
+      React.createElement('input', {
+        className: 'pmgr-input',
+        placeholder: t('searchPlaceholder'),
+        value: searchQuery,
+        onChange: (e) => setSearchQuery(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === 'Enter') doSearch();
+        },
+      }),
+      React.createElement(
+        'button',
+        { className: 'pmgr-btn', disabled: searching, onClick: doSearch },
+        searching ? t('searching') : t('searchBtn')
+      )
+    ),
+    searchResults && searchResults.ok && Array.isArray(searchResults.items) && searchResults.items.length > 0
+      ? React.createElement(
+          'div',
+          { className: 'pmgr-search-results' },
+          searchResults.items.map((r) =>
+            React.createElement(
+              'div',
+              { key: r.fullName, className: 'pmgr-search-item' },
+              React.createElement(
+                'div',
+                { className: 'pmgr-search-item-info' },
+                React.createElement('a', { className: 'pmgr-search-item-name', href: r.htmlUrl, target: '_blank', rel: 'noreferrer', title: r.fullName }, r.fullName),
+                React.createElement('span', { className: 'pmgr-search-item-stars' }, '⭐ ' + r.stars),
+                r.description
+                  ? React.createElement('p', { className: 'pmgr-search-item-desc' }, r.description)
+                  : null
+              ),
+              React.createElement(
+                'button',
+                { className: 'pmgr-btn pmgr-btn-sm', disabled: busy !== null, onClick: () => installFromSearch(r) },
+                t('install')
+              )
+            )
+          )
+        )
+      : null,
+    searchResults && searchResults.ok && searchResults.items && searchResults.items.length === 0
+      ? React.createElement('div', { className: 'pmgr-empty' }, t('noResults'))
+      : null,
+    searchResults && !searchResults.ok
+      ? React.createElement('div', { className: 'pmgr-notice err' }, searchResults.message || t('opFailed'))
+      : null,
     state.error
       ? React.createElement('div', { className: 'pmgr-notice err' }, String(state.error))
       : null,

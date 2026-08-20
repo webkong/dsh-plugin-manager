@@ -14,6 +14,11 @@ export const zh = {
   installPlaceholder: '安装：插件名 / github:owner/repo#main / 任意 pnpm 包标识',
   install: '安装',
   installTitle: '安装',
+  searchTitle: '搜索 GitHub 插件',
+  searchPlaceholder: '搜索 dsh-plugin 插件（默认按 topic 检索）…',
+  searchBtn: '搜索',
+  searching: '搜索中…',
+  noResults: '无结果',
   installing: '安装中…',
 
   groupThird: '三方插件',
@@ -87,6 +92,11 @@ export const en = {
   installPlaceholder: 'Install: package name / github:owner/repo#main / any pnpm spec',
   install: 'Install',
   installTitle: 'Install',
+  searchTitle: 'Search GitHub plugins',
+  searchPlaceholder: 'Search dsh-plugin plugins (topic by default)…',
+  searchBtn: 'Search',
+  searching: 'Searching…',
+  noResults: 'No results',
   installing: 'Installing…',
 
   groupThird: 'Third-party plugins',

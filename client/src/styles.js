@@ -105,6 +105,14 @@ const CSS = `
 .pmgr-output { font-size: 11px; font-family: ui-monospace, monospace; white-space: pre-wrap; word-break: break-all; color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-2); border-radius: 6px; padding: 8px; max-height: 180px; overflow: auto; margin: 0; }
 .pmgr-empty { font-size: 12px; color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary)); padding: 12px 0; }
 .pmgr-foot { font-size: 11px; color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary)); line-height: 1.6; margin: 0; }
+.pmgr-search-results { display: flex; flex-direction: column; gap: 8px; }
+.pmgr-search-item { display: flex; align-items: center; gap: 12px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); padding: 10px 12px; }
+.pmgr-search-item:hover { border-color: var(--dsw-alias-border-l2); }
+.pmgr-search-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pmgr-search-item-name { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pmgr-search-item-name:hover { color: var(--dsw-alias-brand-primary); text-decoration: underline; }
+.pmgr-search-item-stars { font-size: 11px; color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary)); }
+.pmgr-search-item-desc { font-size: 12px; color: var(--dsw-alias-label-secondary); margin: 2px 0 0; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* 响应式：中等宽度操作区换行成组；窄屏 actions 移到底部整行 */
 @media (max-width: 860px) {
