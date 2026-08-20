@@ -1,4 +1,4 @@
-// UI 组件：插件管理器标签页（React.createElement，无 JSX）
+// UI 组件：插件管理器标签页（React.createElement，无 JSX；文案经 t() 多语言）
 // 卡片信息架构：Header（标题+状态+操作）/ 描述 / 来源 metadata
 import React from 'react';
 import { pmgr } from './api.js';
@@ -17,7 +17,6 @@ function fuzzyMatch(text, query) {
   return true;
 }
 
-// 依赖声明中的 ref（# 之后的 branch/commit）
 function refFromSpec(spec) {
   if (!spec) return '';
   const m = String(spec).match(/#([^@\s]+)$/);
@@ -33,42 +32,42 @@ function shortRef(ref) {
   return isCommitHash(ref) ? ref.slice(0, 8) : ref;
 }
 
-// githubUrl → owner/repo
 function repoFromUrl(url) {
   const m = String(url || '').match(/github\.com\/([^/]+\/[^/?#]+)/);
   return m ? m[1] : '';
+}
+
+function phaseText(t, phase) {
+  if (phase === 'active') return t('running');
+  if (phase === 'loading') return t('phaseLoading');
+  if (phase === 'failed') return t('phaseFailed');
+  if (phase === 'pending') return t('phasePending');
+  if (phase === 'unloading') return t('phaseUnloading');
+  if (phase === null || phase === undefined) return t('notRunning');
+  return String(phase);
 }
 
 export function Badge(props) {
   return React.createElement('span', { className: 'pmgr-badge ' + (props.kind || '') }, props.children);
 }
 
-// Runtime 状态：绿色小圆点 + 弱文字
 function RuntimeDot(props) {
-  const { phase } = props;
+  const { t, phase } = props;
   const active = phase === 'active';
   return React.createElement(
     'span',
     { className: 'pmgr-runtime' },
     React.createElement('span', { className: 'pmgr-dot' + (active ? '' : ' off') }),
-    active ? '运行中' : phase ? String(phase) : '未运行'
+    phaseText(t, phase)
   );
 }
 
-// 来源 metadata footer：GitHub · owner/repo · ref / npm / 本地；末尾追加 GitHub ↗ 跳转（小号）
 function CardMeta(props) {
-  const { p } = props;
+  const { t, p } = props;
   const ghLink = p.githubUrl
     ? React.createElement(
         'a',
-        {
-          key: 'gh',
-          className: 'pmgr-meta-gh',
-          href: p.githubUrl,
-          target: '_blank',
-          rel: 'noreferrer',
-          title: p.githubUrl,
-        },
+        { key: 'gh', className: 'pmgr-meta-gh', href: p.githubUrl, target: '_blank', rel: 'noreferrer', title: p.githubUrl },
         'GitHub ↗'
       )
     : null;
@@ -78,7 +77,7 @@ function CardMeta(props) {
     const ref = refFromSpec(p.spec);
     const short = shortRef(ref);
     meta.push(
-      React.createElement('span', { key: 'label', className: 'pmgr-meta-label' }, '来源'),
+      React.createElement('span', { key: 'label', className: 'pmgr-meta-label' }, t('sourceLabel')),
       React.createElement('span', { key: 'sep1', className: 'pmgr-meta-sep' }, '·'),
       React.createElement(
         'a',
@@ -90,39 +89,38 @@ function CardMeta(props) {
       meta.push(
         React.createElement(
           'span',
-          { key: 'ref', className: 'pmgr-meta-hash', title: isCommitHash(ref) ? '完整 commit: ' + ref : '' },
+          { key: 'ref', className: 'pmgr-meta-hash', title: isCommitHash(ref) ? t('fullCommit') + ': ' + ref : '' },
           '· ' + short
         )
       );
     }
   } else if (p.source === 'npm') {
     meta.push(
-      React.createElement('span', { key: 'label', className: 'pmgr-meta-label' }, '来源'),
+      React.createElement('span', { key: 'label', className: 'pmgr-meta-label' }, t('sourceLabel')),
       React.createElement('span', { key: 'sep1', className: 'pmgr-meta-sep' }, '·'),
       React.createElement('span', { key: 'body', className: 'pmgr-meta-hash' }, 'npm' + (p.name ? ' · ' + p.name : ''))
     );
   } else if (p.source === 'local') {
     meta.push(
-      React.createElement('span', { key: 'label', className: 'pmgr-meta-label' }, '来源'),
+      React.createElement('span', { key: 'label', className: 'pmgr-meta-label' }, t('sourceLabel')),
       React.createElement('span', { key: 'sep1', className: 'pmgr-meta-sep' }, '·'),
-      React.createElement('span', { key: 'body' }, '本地路径')
+      React.createElement('span', { key: 'body' }, t('sourceLocal'))
     );
   }
   if (ghLink) meta.push(ghLink);
   return meta.length ? React.createElement('div', { className: 'pmgr-card-meta' }, ...meta) : null;
 }
 
-// 一个可折叠分组：标题 + 搜索框 + 按状态分子组（运行中 / 已停用 / 失效）
 function PluginGroup(props) {
-  const { title, count, open, onToggle, query, onQuery, plugins, renderRow } = props;
+  const { t, title, count, open, onToggle, query, onQuery, plugins, renderRow } = props;
   const filtered = plugins.filter((p) => fuzzyMatch(p.name + ' ' + (p.description || ''), query));
   const running = filtered.filter((p) => !p.missing && p.enabled);
   const stopped = filtered.filter((p) => !p.missing && !p.enabled);
   const missing = filtered.filter((p) => p.missing);
   const sections = [];
-  if (running.length) sections.push({ key: 'running', label: '运行中', list: running });
-  if (stopped.length) sections.push({ key: 'stopped', label: '已停用', list: stopped });
-  if (missing.length) sections.push({ key: 'missing', label: '失效', list: missing });
+  if (running.length) sections.push({ key: 'running', label: t('subRunning'), list: running });
+  if (stopped.length) sections.push({ key: 'stopped', label: t('subStopped'), list: stopped });
+  if (missing.length) sections.push({ key: 'missing', label: t('subMissing'), list: missing });
   return React.createElement(
     'div',
     { className: 'pmgr-group' },
@@ -130,7 +128,7 @@ function PluginGroup(props) {
       'div',
       { className: 'pmgr-group-head', onClick: onToggle },
       React.createElement('h3', { className: 'pmgr-group-title' }, title + '（' + count + '）'),
-      React.createElement('span', { className: 'pmgr-group-toggle' }, open ? '▾ 收起' : '▸ 展开')
+      React.createElement('span', { className: 'pmgr-group-toggle' }, open ? t('collapse') : t('expand'))
     ),
     open
       ? React.createElement(
@@ -138,7 +136,7 @@ function PluginGroup(props) {
           { className: 'pmgr-group' },
           React.createElement('input', {
             className: 'pmgr-input pmgr-search',
-            placeholder: '搜索' + title + '…（模糊匹配）',
+            placeholder: t('searchPlaceholder', { title }),
             value: query,
             onChange: (e) => onQuery(e.target.value),
           }),
@@ -151,13 +149,14 @@ function PluginGroup(props) {
                   sec.list.map(renderRow)
                 )
               )
-            : React.createElement('div', { className: 'pmgr-empty' }, '无匹配')
+            : React.createElement('div', { className: 'pmgr-empty' }, t('noMatch'))
         )
       : null
   );
 }
 
-export function PluginManagerTab() {
+export function PluginManagerTab(props) {
+  const { t } = props;
   const [state, setState] = React.useState({ loading: true, error: null, data: null });
   const [busy, setBusy] = React.useState(null);
   const [spec, setSpec] = React.useState('');
@@ -178,26 +177,29 @@ export function PluginManagerTab() {
     refresh(true);
   }, []);
 
-  const METHOD_LABELS = { install: '安装', uninstall: '卸载', stop: '停用', start: '启动', setSettings: '设置', restart: '重启' };
+  const d = state.data;
+  const plugins = d && d.plugins ? d.plugins : [];
+  const builtin = plugins.filter((p) => p.kind === 'builtin');
+  const third = plugins.filter((p) => p.kind === 'third-party');
 
   const act = (method, args, label) => {
     setBusy(label);
     setModal(null);
     pmgr[method](args)
       .then((data) => {
-        const name = METHOD_LABELS[method] || method;
+        const opName = t(method === 'setSettings' ? 'opRestart' : method === 'install' ? 'opInstall' : method === 'uninstall' ? 'opUninstall' : method === 'stop' ? 'opStop' : method === 'start' ? 'opStart' : 'opRestart');
         if (data && data.ok) {
           if (data.restarting) {
-            setModal({ kind: 'ok', title: name + '成功', text: data.message || '', output: data.output || null });
+            setModal({ kind: 'ok', title: opName + ' ' + t('success'), text: data.message || '', output: data.output || null });
           } else {
-            setModal({ kind: 'ok', title: name + '成功', text: data.message || '完成', output: data.output || null, pendingRestart: method === 'install' || method === 'uninstall' });
+            setModal({ kind: 'ok', title: opName + ' ' + t('success'), text: data.message || t('ok'), output: data.output || null, pendingRestart: method === 'install' || method === 'uninstall' });
             refresh(true);
           }
         } else {
-          setModal({ kind: 'err', title: name + '失败', text: (data && data.message) || '操作失败', output: (data && data.output) || null });
+          setModal({ kind: 'err', title: opName + ' ' + t('failed'), text: (data && data.message) || t('opFailed'), output: (data && data.output) || null });
         }
       })
-      .catch((e) => setModal({ kind: 'err', title: '操作失败', text: String((e && e.message) || e), output: null }))
+      .catch((e) => setModal({ kind: 'err', title: t('opFailed'), text: String((e && e.message) || e), output: null }))
       .finally(() => setBusy(null));
   };
 
@@ -206,10 +208,6 @@ export function PluginManagerTab() {
     act('install', { spec: spec.trim() }, 'install');
   };
 
-  const d = state.data;
-  const plugins = d && d.plugins ? d.plugins : [];
-  const builtin = plugins.filter((p) => p.kind === 'builtin');
-  const third = plugins.filter((p) => p.kind === 'third-party');
   const autoRestart = !!(d && d.settings && d.settings.autoRestart);
   const toggleAutoRestart = () => {
     setBusy('settings');
@@ -229,34 +227,31 @@ export function PluginManagerTab() {
     pmgr.restart()
       .then((res) => {
         if (res && res.ok) {
-          setModal({ kind: 'ok', title: '重启中', text: res.message || '正在重启 dsh web…', output: null });
+          setModal({ kind: 'ok', title: t('opRestart'), text: res.message || t('restarting'), output: null });
         } else {
-          setModal({ kind: 'err', title: '重启失败', text: (res && res.message) || '无法触发重启', output: null });
+          setModal({ kind: 'err', title: t('opRestart') + ' ' + t('failed'), text: (res && res.message) || t('restartFailed'), output: null });
         }
       })
-      .catch((e) => setModal({ kind: 'err', title: '重启失败', text: String((e && e.message) || e), output: null }))
+      .catch((e) => setModal({ kind: 'err', title: t('opRestart') + ' ' + t('failed'), text: String((e && e.message) || e), output: null }))
       .finally(() => setBusy(null));
   };
 
-
   const renderRow = (p) => {
-    // 状态：已启用（浅绿 Badge）/ 已停用（灰）/ 失效（红）
     const stateBadge = p.missing
-      ? React.createElement(Badge, { kind: 'missing' }, '失效')
+      ? React.createElement(Badge, { kind: 'missing' }, t('missingStat'))
       : p.enabled
-        ? React.createElement(Badge, { kind: 'enabled' }, '已启用')
-        : React.createElement(Badge, { kind: 'stopped' }, '已停用');
-    // Runtime 圆点：仅挂载时显示
+        ? React.createElement(Badge, { kind: 'enabled' }, t('enabledStat'))
+        : React.createElement(Badge, { kind: 'stopped' }, t('stoppedStat'));
     const runtimeDot = p.mounted && p.enabled && p.runtime
-      ? React.createElement(RuntimeDot, { phase: p.runtime.fiberPhase })
+      ? React.createElement(RuntimeDot, { t, phase: p.runtime.fiberPhase })
       : null;
     const kindBadge = p.kind === 'builtin'
-      ? React.createElement(Badge, null, '内置')
-      : React.createElement(Badge, { kind: 'kind-third' }, '第三方');
+      ? React.createElement(Badge, null, t('kindBuiltin'))
+      : React.createElement(Badge, { kind: 'kind-third' }, t('kindThird'));
     const srcBadge = p.source === 'github'
-      ? React.createElement(Badge, null, 'GitHub')
+      ? React.createElement(Badge, null, t('sourceGithub'))
       : p.source === 'npm'
-        ? React.createElement(Badge, null, 'npm')
+        ? React.createElement(Badge, null, t('sourceNpm'))
         : null;
 
     const actions = [];
@@ -271,7 +266,7 @@ export function PluginManagerTab() {
               disabled: busy !== null,
               onClick: () => act(p.disabled ? 'start' : 'stop', { name: p.name }, p.name),
             },
-            p.disabled ? '启动' : '停用'
+            p.disabled ? t('actionStart') : t('actionStop')
           )
         );
       } else if (p.isBundle && p.installed) {
@@ -284,7 +279,7 @@ export function PluginManagerTab() {
               disabled: busy !== null,
               onClick: () => act('start', { name: p.name }, p.name),
             },
-            '装载'
+            t('actionLoad')
           )
         );
       }
@@ -296,20 +291,29 @@ export function PluginManagerTab() {
             className: 'pmgr-btn pmgr-btn-sm weak',
             disabled: busy !== null,
             onClick: () => {
-              if (window.confirm('确定卸载插件 ' + p.name + ' 吗？（重启后不再装载）')) {
+              if (window.confirm(t('confirmUninstall', { name: p.name }))) {
                 act('uninstall', { name: p.name }, p.name);
               }
             },
           },
-          '卸载'
+          t('actionUninstall')
         )
       );
     }
+    if (p.githubUrl) {
+      actions.push(
+        React.createElement(
+          'a',
+          { key: 'gh', className: 'pmgr-meta-gh', href: p.githubUrl, target: '_blank', rel: 'noreferrer', title: p.githubUrl },
+          'GitHub ↗'
+        )
+      );
+    }
+
     const busyThis = busy === p.name || busy === 'install';
     return React.createElement(
       'div',
       { key: p.name, className: 'pmgr-card' },
-      // 第一层：Header
       React.createElement(
         'div',
         { className: 'pmgr-card-header' },
@@ -333,13 +337,11 @@ export function PluginManagerTab() {
         ),
         React.createElement('div', { className: 'pmgr-card-actions' }, ...actions)
       ),
-      // 第二层：描述（无描述不渲染，避免空白占位）
       p.description
         ? React.createElement('p', { className: 'pmgr-card-desc', title: p.description }, p.description)
         : null,
-      // 第三层：来源 metadata
-      React.createElement(CardMeta, { p }),
-      busyThis ? React.createElement('p', { className: 'pmgr-foot' }, '处理中…') : null
+      React.createElement(CardMeta, { t, p }),
+      busyThis ? React.createElement('p', { className: 'pmgr-foot' }, t('processing')) : null
     );
   };
 
@@ -352,48 +354,31 @@ export function PluginManagerTab() {
       React.createElement(
         'div',
         { className: 'pmgr-title-row' },
-        React.createElement('h2', { className: 'pmgr-title' }, 'DSH 插件管理器'),
+        React.createElement('h2', { className: 'pmgr-title' }, t('title')),
         d && d.profile
           ? React.createElement(Badge, null, 'profile: ' + d.profile + ' · ' + d.profileDir)
           : null,
         React.createElement(
           'button',
           { className: 'pmgr-btn', disabled: state.loading, onClick: () => refresh(false) },
-          '刷新'
+          t('refresh')
         )
       ),
       React.createElement(
         'div',
         { className: 'pmgr-status-row' },
         d && d.counts
-          ? React.createElement(Badge, null, '内置 ' + d.counts.builtin + ' / 三方 ' + d.counts.thirdParty)
+          ? React.createElement(Badge, null, t('builtinLabel') + ' ' + d.counts.builtin + ' / ' + t('thirdLabel') + ' ' + d.counts.thirdParty)
           : null,
         d
           ? React.createElement(
               Badge,
               null,
-              '已启用 ' + plugins.filter((q) => q.enabled).length +
-              ' · 已停用 ' + plugins.filter((q) => !q.enabled && !q.missing).length +
-              ' · 失效 ' + plugins.filter((q) => q.missing).length
+              t('enabledStat') + ' ' + plugins.filter((q) => q.enabled).length +
+              ' · ' + t('stoppedStat') + ' ' + plugins.filter((q) => !q.enabled && !q.missing).length +
+              ' · ' + t('missingStat') + ' ' + plugins.filter((q) => q.missing).length
             )
-          : null,
-        React.createElement(
-          'label',
-          { className: 'pmgr-toggle' },
-          React.createElement('span', { className: 'pmgr-toggle-label' }, '自动重启'),
-          React.createElement(
-            'button',
-            {
-              type: 'button',
-              role: 'switch',
-              'aria-checked': autoRestart,
-              className: 'pmgr-switch' + (autoRestart ? ' on' : ''),
-              disabled: busy !== null,
-              onClick: toggleAutoRestart,
-            },
-            React.createElement('span', { className: 'pmgr-switch-knob' })
-          )
-        )
+          : null
       )
     ),
     React.createElement(
@@ -401,7 +386,7 @@ export function PluginManagerTab() {
       { className: 'pmgr-install' },
       React.createElement('input', {
         className: 'pmgr-input',
-        placeholder: '安装：插件名 / github:owner/repo#main / 任意 pnpm 包标识',
+        placeholder: t('installPlaceholder'),
         value: spec,
         onChange: (e) => setSpec(e.target.value),
         onKeyDown: (e) => {
@@ -411,18 +396,35 @@ export function PluginManagerTab() {
       React.createElement(
         'button',
         { className: 'pmgr-btn', disabled: busy !== null || !spec.trim(), onClick: doInstall },
-        busy === 'install' ? '安装中…' : '安装'
+        busy === 'install' ? t('installing') : t('install')
+      ),
+      React.createElement(
+        'label',
+        { className: 'pmgr-toggle' },
+        React.createElement('span', { className: 'pmgr-toggle-label' }, t('autoRestart')),
+        React.createElement(
+          'button',
+          {
+            type: 'button',
+            role: 'switch',
+            'aria-checked': autoRestart,
+            className: 'pmgr-switch' + (autoRestart ? ' on' : ''),
+            disabled: busy !== null,
+            onClick: toggleAutoRestart,
+          },
+          React.createElement('span', { className: 'pmgr-switch-knob' })
+        )
       )
     ),
     state.error
       ? React.createElement('div', { className: 'pmgr-notice err' }, String(state.error))
       : null,
     state.loading && !state.data
-      ? React.createElement('div', { className: 'pmgr-empty' }, '加载中…')
+      ? React.createElement('div', { className: 'pmgr-empty' }, t('loading'))
       : null,
-    // 三方插件（上移，默认展开）
     React.createElement(PluginGroup, {
-      title: '三方插件',
+      t,
+      title: t('groupThird'),
       count: third.length,
       open: thirdOpen,
       onToggle: () => setThirdOpen(!thirdOpen),
@@ -431,9 +433,9 @@ export function PluginManagerTab() {
       plugins: third,
       renderRow,
     }),
-    // 内置插件（默认收起）
     React.createElement(PluginGroup, {
-      title: '内置插件',
+      t,
+      title: t('groupBuiltin'),
       count: builtin.length,
       open: builtinOpen,
       onToggle: () => setBuiltinOpen(!builtinOpen),
@@ -453,7 +455,7 @@ export function PluginManagerTab() {
               'div',
               { className: 'pmgr-modal-head' },
               React.createElement('h3', { className: 'pmgr-modal-title' }, modal.title),
-              React.createElement('button', { className: 'pmgr-modal-close', onClick: () => setModal(null), 'aria-label': '关闭' }, '×')
+              React.createElement('button', { className: 'pmgr-modal-close', onClick: () => setModal(null), 'aria-label': '×' }, '×')
             ),
             React.createElement('div', { className: 'pmgr-modal-body' },
               React.createElement('p', { className: 'pmgr-modal-text' }, modal.text),
@@ -463,18 +465,13 @@ export function PluginManagerTab() {
               'div',
               { className: 'pmgr-modal-actions' },
               modal.pendingRestart
-                ? React.createElement('button', { className: 'pmgr-btn', onClick: doRestartNow, disabled: busy !== null }, '立即重启')
+                ? React.createElement('button', { className: 'pmgr-btn', onClick: doRestartNow, disabled: busy !== null }, t('restartNow'))
                 : null,
-              React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm', onClick: () => setModal(null) }, '确定')
+              React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm', onClick: () => setModal(null) }, t('ok'))
             )
           )
         )
       : null,
-    React.createElement(
-      'p',
-      { className: 'pmgr-foot' },
-      '说明：安装 / 卸载通过 pnpm（dsh plugin）执行，重启后生效；停用 / 启动通过修改 profile 的 cordis.patch.yml（重启后生效，若当前进程 HMR 已激活则可能即时生效）。内置插件属于 DSH 发行版，只读。' +
-      ' 三方插件的 GitHub 链接取自依赖声明或已安装包的 repository 字段。'
-    )
+    React.createElement('p', { className: 'pmgr-foot' }, t('footNote'))
   );
 }
