@@ -2,6 +2,7 @@
 // 卡片信息架构：Header（标题+状态+操作）/ 描述 / 来源 metadata
 import React from 'react';
 import { pmgr } from './api.js';
+import { validateSpec } from './spec.js';
 
 // 模糊匹配：query 字符按顺序出现在 text 中（子序列匹配，大小写不敏感）
 function fuzzyMatch(text, query) {
@@ -167,6 +168,7 @@ export function PluginManagerTab(props) {
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const [thirdQuery, setThirdQuery] = React.useState('');
   const [builtinQuery, setBuiltinQuery] = React.useState('');
+  const [installError, setInstallError] = React.useState('');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [searchResults, setSearchResults] = React.useState(null);
   const [searching, setSearching] = React.useState(false);
@@ -213,7 +215,12 @@ export function PluginManagerTab(props) {
   };
 
   const doInstall = () => {
-    if (!spec.trim()) return;
+    const check = validateSpec(spec);
+    if (!check.ok) {
+      setInstallError(check.error);
+      return;
+    }
+    setInstallError('');
     act('install', { spec: spec.trim() }, 'install', t('installing'));
   };
 
@@ -436,6 +443,9 @@ export function PluginManagerTab(props) {
         )
       )
     ),
+    installError
+      ? React.createElement('div', { className: 'pmgr-notice err' }, installError)
+      : null,
     React.createElement('h3', { className: 'pmgr-section-title' }, t('searchTitle')),
     React.createElement(
       'div',

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { findEntryIds } from '../lib/entryIds.js'
 import { githubUrlFromSpec, githubUrlFromRepo, specSource } from '../lib/github.js'
 import { patchHasStop, patchWithStop, patchWithoutStop, stopAddition } from '../lib/patch.js'
+import { validateSpec } from '../lib/spec.js'
 
 const MARKER = 'dsh-plugin-manager'
 const TEMPLATE = `# Your patch layer for this dsh profile, applied after every bundle layer:
@@ -63,6 +64,21 @@ test('specSource 判定依赖来源', () => {
   assert.equal(specSource('^0.1.9'), 'npm')
   assert.equal(specSource('file:../x'), 'local')
   assert.equal(specSource(null), 'unknown')
+})
+
+// ---- 安装 spec 校验 ----
+test('validateSpec 校验安装标识', () => {
+  assert.equal(validateSpec('dsh-better-sidebar').ok, true)
+  assert.equal(validateSpec('dsh-plugins-finder@^0.1.9').ok, true)
+  assert.equal(validateSpec('@liustack/modlens@3.17.2').ok, true)
+  assert.equal(validateSpec('github:owner/repo#main').ok, true)
+  assert.equal(validateSpec('owner/repo#abc123').ok, true)
+  assert.equal(validateSpec('file:../x').ok, true)
+  assert.equal(validateSpec('https://example.com/a.tgz').ok, true)
+  assert.equal(validateSpec('').ok, false)
+  assert.equal(validateSpec('  ').ok, false)
+  assert.equal(validateSpec('bad spec with spaces').ok, false)
+  assert.equal(validateSpec('not valid!!!').ok, false)
 })
 
 // ---- patch 停用/启用文本操作 ----
