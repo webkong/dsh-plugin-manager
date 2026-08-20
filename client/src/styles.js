@@ -16,8 +16,13 @@ const CSS = `
 .pmgr-switch.on .pmgr-switch-knob { left: 17px; }
 
 /* 弹窗 */
-.pmgr-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.pmgr-modal { width: min(480px, calc(100vw - 48px)); max-height: 75vh; overflow: auto; background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.2); }
+@keyframes pmgr-fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes pmgr-pop-in { from { opacity: 0; transform: translateY(8px) scale(0.98) } to { opacity: 1; transform: none } }
+@keyframes pmgr-spin { to { transform: rotate(360deg) } }
+.pmgr-spinner { width: 16px; height: 16px; border: 2px solid var(--dsw-alias-border-l2); border-top-color: var(--dsw-alias-brand-primary); border-radius: 50%; animation: pmgr-spin 0.8s linear infinite; flex: none; }
+.pmgr-modal-loading { flex-direction: row; align-items: center; gap: 10px; padding: 18px 20px; }
+.pmgr-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: pmgr-fade-in 0.15s ease; }
+.pmgr-modal { width: min(480px, calc(100vw - 48px)); max-height: 75vh; overflow: auto; background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.2); animation: pmgr-pop-in 0.18s ease; }
 .pmgr-modal.err { border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l2)); }
 .pmgr-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pmgr-modal-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--dsw-alias-label-primary); }
@@ -72,6 +77,8 @@ const CSS = `
 .pmgr-btn:disabled { opacity: 0.55; cursor: default; }
 .pmgr-btn-sm { height: 26px; padding: 0 10px; font-size: 12px; border-radius: 6px; }
 .pmgr-btn-sm.weak { height: 26px; padding: 0 10px; }
+.pmgr-btn.danger { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
+.pmgr-btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent); }
 .pmgr-btn.weak { border: none; background: none; padding: 0 8px; color: var(--dsw-alias-label-secondary); }
 .pmgr-btn.weak:hover:not(:disabled) { color: var(--dsw-alias-state-error-primary); }
 .pmgr-btn.weak:focus-visible { outline: 2px solid var(--dsw-alias-state-error-primary); outline-offset: 1px; }

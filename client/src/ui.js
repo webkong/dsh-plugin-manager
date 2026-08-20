@@ -161,6 +161,8 @@ export function PluginManagerTab(props) {
   const [busy, setBusy] = React.useState(null);
   const [spec, setSpec] = React.useState('');
   const [modal, setModal] = React.useState(null);
+  const [confirm, setConfirm] = React.useState(null);
+  const [loading, setLoading] = React.useState(null);
   const [thirdOpen, setThirdOpen] = React.useState(true);
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const [thirdQuery, setThirdQuery] = React.useState('');
@@ -182,9 +184,10 @@ export function PluginManagerTab(props) {
   const builtin = plugins.filter((p) => p.kind === 'builtin');
   const third = plugins.filter((p) => p.kind === 'third-party');
 
-  const act = (method, args, label) => {
+  const act = (method, args, label, loadingText) => {
     setBusy(label);
     setModal(null);
+    if (loadingText) setLoading({ label: loadingText });
     pmgr[method](args)
       .then((data) => {
         const opName = t(method === 'setSettings' ? 'opRestart' : method === 'install' ? 'opInstall' : method === 'uninstall' ? 'opUninstall' : method === 'stop' ? 'opStop' : method === 'start' ? 'opStart' : 'opRestart');
@@ -200,12 +203,15 @@ export function PluginManagerTab(props) {
         }
       })
       .catch((e) => setModal({ kind: 'err', title: t('opFailed'), text: String((e && e.message) || e), output: null }))
-      .finally(() => setBusy(null));
+      .finally(() => {
+        setBusy(null);
+        setLoading(null);
+      });
   };
 
   const doInstall = () => {
     if (!spec.trim()) return;
-    act('install', { spec: spec.trim() }, 'install');
+    act('install', { spec: spec.trim() }, 'install', t('installing'));
   };
 
   const autoRestart = !!(d && d.settings && d.settings.autoRestart);
@@ -264,7 +270,13 @@ export function PluginManagerTab(props) {
               key: 'toggle',
               className: 'pmgr-btn pmgr-btn-sm',
               disabled: busy !== null,
-              onClick: () => act(p.disabled ? 'start' : 'stop', { name: p.name }, p.name),
+              onClick: () => {
+                if (p.disabled) {
+                  act('start', { name: p.name }, p.name);
+                } else {
+                  setConfirm({ title: t('opStop'), message: t('confirmStop', { name: p.name }), onConfirm: () => act('stop', { name: p.name }, p.name) });
+                }
+              },
             },
             p.disabled ? t('actionStart') : t('actionStop')
           )
@@ -291,9 +303,11 @@ export function PluginManagerTab(props) {
             className: 'pmgr-btn pmgr-btn-sm weak',
             disabled: busy !== null,
             onClick: () => {
-              if (window.confirm(t('confirmUninstall', { name: p.name }))) {
-                act('uninstall', { name: p.name }, p.name);
-              }
+              setConfirm({
+                title: t('opUninstall'),
+                message: t('confirmUninstall', { name: p.name }),
+                onConfirm: () => act('uninstall', { name: p.name }, p.name, t('uninstalling')),
+              });
             },
           },
           t('actionUninstall')
@@ -434,6 +448,53 @@ export function PluginManagerTab(props) {
       plugins: builtin,
       renderRow,
     }),
+    loading
+      ? React.createElement(
+          'div',
+          { className: 'pmgr-modal-backdrop' },
+          React.createElement(
+            'div',
+            { className: 'pmgr-modal pmgr-modal-loading' },
+            React.createElement('span', { className: 'pmgr-spinner' }),
+            React.createElement('p', { className: 'pmgr-modal-text' }, loading.label)
+          )
+        )
+      : null,
+    confirm
+      ? React.createElement(
+          'div',
+          { className: 'pmgr-modal-backdrop', onClick: () => setConfirm(null) },
+          React.createElement(
+            'div',
+            { className: 'pmgr-modal', onClick: (e) => e.stopPropagation() },
+            React.createElement(
+              'div',
+              { className: 'pmgr-modal-head' },
+              React.createElement('h3', { className: 'pmgr-modal-title' }, confirm.title),
+              React.createElement('button', { className: 'pmgr-modal-close', onClick: () => setConfirm(null), 'aria-label': '×' }, '×')
+            ),
+            React.createElement('div', { className: 'pmgr-modal-body' },
+              React.createElement('p', { className: 'pmgr-modal-text' }, confirm.message)
+            ),
+            React.createElement(
+              'div',
+              { className: 'pmgr-modal-actions' },
+              React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm', onClick: () => setConfirm(null) }, t('cancel')),
+              React.createElement(
+                'button',
+                {
+                  className: 'pmgr-btn pmgr-btn-sm danger',
+                  onClick: () => {
+                    setConfirm(null);
+                    confirm.onConfirm();
+                  },
+                },
+                t('ok')
+              )
+            )
+          )
+        )
+      : null,
     modal
       ? React.createElement(
           'div',

@@ -20,7 +20,7 @@ export function apply(ctx) {
         name: 'settings.plugins.tab',
         id: 'pm-manage',
         order: 20,
-        label: () => t('title'),
+        label: () => t('tabLabel'),
       },
       () => React.createElement(PluginManagerTab, { t })
     )

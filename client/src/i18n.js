@@ -1,6 +1,7 @@
 // 插件多语言文案（zh / en）
 export const zh = {
   title: 'DSH 插件管理器',
+  tabLabel: '插件管理',
   refresh: '刷新',
   autoRestart: '自动重启',
 
@@ -45,6 +46,9 @@ export const zh = {
   actionLoad: '装载',
   actionUninstall: '卸载',
   confirmUninstall: '确定卸载插件 {name} 吗？（重启后不再装载）',
+  confirmStop: '确定停用插件 {name} 吗？（重启后生效）',
+  cancel: '取消',
+  uninstalling: '正在卸载…',
 
   processing: '处理中…',
   loading: '加载中…',
@@ -69,6 +73,7 @@ export const zh = {
 
 export const en = {
   title: 'DSH Plugin Manager',
+  tabLabel: 'Plugin Manager',
   refresh: 'Refresh',
   autoRestart: 'Auto-restart',
 
@@ -113,6 +118,9 @@ export const en = {
   actionLoad: 'Load',
   actionUninstall: 'Uninstall',
   confirmUninstall: 'Uninstall plugin {name}? (it will no longer load after restart)',
+  confirmStop: 'Stop plugin {name}? (takes effect after restart)',
+  cancel: 'Cancel',
+  uninstalling: 'Uninstalling…',
 
   processing: 'Working…',
   loading: 'Loading…',
