@@ -2,6 +2,7 @@
 import React from 'react';
 import { injectStyles } from './styles.js';
 import { PluginManagerTab } from './ui.js';
+import { RestartToast } from './toast.js';
 import { zh, en } from './i18n.js';
 
 export const NS = 'settings.pluginManager';
@@ -23,6 +24,19 @@ export function apply(ctx) {
         label: () => t('tabLabel'),
       },
       () => React.createElement(PluginManagerTab, { t })
+    )
+  );
+
+  // 重启完成后的 toast（帧级浮层，自动消失）
+  slots.inject('shell.overlay', () =>
+    slots.register(
+      {
+        name: 'shell.overlay',
+        id: 'pmgr-restart-toast',
+        order: 100,
+        label: 'dsh-plugin-manager',
+      },
+      () => React.createElement(RestartToast, { t })
     )
   );
 }

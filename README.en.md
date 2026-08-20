@@ -4,17 +4,23 @@
 
 A plugin manager for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness). It adds a **Plugin Manager** page to the Web settings: list **built-in / third-party** plugins, **install, uninstall, start, stop**, and jump straight to a third-party plugin's GitHub repository.
 
-![screenshot](assets/screenshot.png)
+![Plugin Manager demo](assets/demo.gif)
+
+![Plugin list](assets/plugin-list.png)
+
+![Install dialog](assets/install-dialog.png)
 
 ## Features
 
 - **Built-in vs third-party**: enumerates all built-in plugins from the live Loader (consistent with DSH's own list); packages in the profile `dependencies` are treated as third-party and manageable
 - **Install**: `dsh plugin --profile web add <spec>` (npm name / `github:owner/repo#main` / any pnpm spec)
+- **Smart resolve**: a bare name (e.g. `dsh-paste-input`) is auto-detected as an npm package or a GitHub repo; GitHub hits are listed as one-click candidates
 - **Uninstall**: `dsh plugin --profile web remove <name>`, plus cleanup of leftover stop entries
 - **Stop / start**: resolves a bundle's loader entry ids and writes/removes `{ id, name, disabled: true }` in the profile `cordis.patch.yml`; falls back to editing the bundles list when ids can't be located
-- **GitHub link**: a lightweight link at the end of the source row, derived from the dependency spec or the installed package's `repository` field
-- **Auto-restart**: optional automatic restart of dsh web after install/uninstall (off by default, see Configuration)
-- **Groups & search**: collapsible built-in / third-party groups, state subgroups (running / stopped / missing), fuzzy search
+- **GitHub link**: the version number right after the package name (underlined + ↗) opens the repo, derived from the dependency spec or the installed package's `repository` field
+- **Auto-restart**: optional automatic restart of dsh web after install/uninstall (off by default); a 10s countdown auto-refreshes, then a top-right toast offers a one-click jump back to this tab
+- **GitHub token**: reads `GH_TOKEN` from env / gh CLI / shell rc / git config for the GitHub API, and hints at the rate limit when unset
+- **Filters & search**: status filter tabs + source filter + fuzzy search, collapsible built-in / third-party groups
 - **i18n**: 中文 / English, following the DSH language preference
 
 > Install / uninstall / stop / start take effect **after a restart** (stop/start may apply immediately when HMR is active).
@@ -63,21 +69,27 @@ dsh-plugin-manager/
 ├── lib/                    # Host half (zero external deps, plain ESM + node builtins)
 │   ├── index.js            # entry: name/inject/apply + webServer route registration
 │   ├── constants.js        # route prefix / stop marker / default profile
-│   ├── handlers.js         # HTTP dispatch
-│   ├── manager.js          # business layer (dependency-injected fs tools)
+│   ├── handlers.js         # HTTP dispatch (list/install/uninstall/stop/start/search/resolve/settings/restart)
+│   ├── manager.js          # business layer: inventory, ops, search/resolve (DI fs tools)
 │   ├── fsutil.js           # node:fs + child_process + settings persistence
 │   ├── resolve.js          # dual-anchor package resolution / metadata
 │   ├── entryIds.js         # bundle patch entry id discovery
-│   ├── github.js           # GitHub URL extraction
+│   ├── github.js           # GitHub URL extraction + GH_TOKEN loading
+│   ├── spec.js             # install spec validation
 │   ├── patch.js            # cordis.patch.yml stop/start text ops
 │   └── http.js             # JSON response / loopback guard
 ├── client/src/             # Client source (modular, bundled to one file)
-│   ├── index.js            # apply entry + slots/locale registration
+│   ├── index.js            # apply entry + settings tab / shell.overlay registration
 │   ├── api.js              # fetch wrapper + pmgr methods
+│   ├── components.js       # status tabs / toolbar / install dialog / plugin card
 │   ├── i18n.js             # zh / en dictionaries
+│   ├── spec.js             # client spec validation + bare-name detection
 │   ├── styles.js           # CSS injection
-│   └── ui.js               # card / group / modal components
-├── assets/screenshot.png   # screenshot
+│   ├── toast.js            # restart-complete toast + one-click jump
+│   └── ui.js               # page orchestration / groups / modals
+├── assets/demo.gif            # plugin manager demo GIF
+├── assets/plugin-list.png    # plugin list screenshot
+├── assets/install-dialog.png # install dialog screenshot
 └── test/pure.test.mjs      # unit tests
 ```
 
@@ -91,6 +103,8 @@ The Host exposes HTTP routes under `/pmgr/*` (loopback only), called by the clie
 | `POST /pmgr/install` | install (`{spec}`) |
 | `POST /pmgr/uninstall` | uninstall (`{name}`) |
 | `POST /pmgr/stop` / `POST /pmgr/start` | stop / start (`{name}`) |
+| `POST /pmgr/search` | search GitHub plugins (`{q}`) |
+| `POST /pmgr/resolve` | resolve a bare name (npm check / GitHub candidates) |
 | `POST /pmgr/settings` | update settings (`{autoRestart}`) |
 | `POST /pmgr/restart` | trigger a manual restart |
 

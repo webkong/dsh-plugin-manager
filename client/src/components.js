@@ -1,7 +1,7 @@
 // 插件管理页子组件：状态 Tabs / Toolbar / 安装弹窗 / 插件卡片（含 ••• 菜单）
 import React from 'react';
 import { pmgr } from './api.js';
-import { validateSpec } from './spec.js';
+import { validateSpec, isBareName } from './spec.js';
 
 // 卡片运行时状态：●运行中 / 已停用 / ●加载失败
 export function RuntimeState(props) {
@@ -75,6 +75,8 @@ export function InstallDialog(props) {
   const [gq, setGq] = React.useState('');
   const [results, setResults] = React.useState(null);
   const [searching, setSearching] = React.useState(false);
+  const [resolving, setResolving] = React.useState(false);
+  const [resolved, setResolved] = React.useState(null);
 
   if (!open) return null;
 
@@ -85,7 +87,36 @@ export function InstallDialog(props) {
       return;
     }
     setErr('');
-    onInstall(spec.trim());
+    const clean = spec.trim();
+    if (isBareName(clean)) {
+      resolveBare(clean);
+    } else {
+      onInstall(clean);
+    }
+  };
+
+  // 裸包名：探测是 npm 还是 GitHub
+  const resolveBare = (name) => {
+    setResolving(true);
+    setResolved(null);
+    pmgr.resolve({ name })
+      .then((d) => {
+        if (!d || !d.ok) {
+          setErr((d && d.message) || t('opFailed'));
+          return;
+        }
+        if (d.type === 'npm') {
+          onInstall(name);
+          return;
+        }
+        if (d.type === 'github') {
+          setResolved(d);
+          return;
+        }
+        setErr(t('resolveNotFound', { name }));
+      })
+      .catch((e) => setErr(String((e && e.message) || e)))
+      .finally(() => setResolving(false));
   };
 
   const doSearch = () => {
@@ -118,18 +149,48 @@ export function InstallDialog(props) {
         ? React.createElement(
             'div',
             { className: 'pmgr-install-form' },
-            React.createElement('label', { className: 'pmgr-field-label' }, t('specLabel')),
-            React.createElement('input', {
-              className: 'pmgr-input',
-              placeholder: t('specPlaceholder'),
-              value: spec,
-              autoFocus: true,
-              onChange: (e) => setSpec(e.target.value),
-              onKeyDown: (e) => {
-                if (e.key === 'Enter') doInstall();
-              },
-            }),
+            React.createElement(
+              'div',
+              { className: 'pmgr-install' },
+              React.createElement('input', {
+                className: 'pmgr-input',
+                placeholder: t('specPlaceholder'),
+                value: spec,
+                autoFocus: true,
+                onChange: (e) => { setSpec(e.target.value); setResolved(null); setErr(''); },
+                onKeyDown: (e) => {
+                  if (e.key === 'Enter') doInstall();
+                },
+              }),
+              React.createElement('button', { className: 'pmgr-btn pmgr-btn-primary', disabled: busy !== null || resolving, onClick: doInstall }, resolving ? t('resolving') : busy === 'install' ? t('installing') : t('install'))
+            ),
             err ? React.createElement('div', { className: 'pmgr-notice err' }, err) : null,
+            resolved && resolved.type === 'github'
+              ? React.createElement(
+                  'div',
+                  { className: 'pmgr-resolve' },
+                  React.createElement('div', { className: 'pmgr-notice' }, t('resolveGithubHint', { name: spec.trim() })),
+                  resolved.candidates.map((c) =>
+                    React.createElement(
+                      'div',
+                      { key: c.fullName, className: 'pmgr-search-item' },
+                      React.createElement(
+                        'div',
+                        { className: 'pmgr-search-item-info' },
+                        React.createElement('a', { className: 'pmgr-search-item-name', href: c.htmlUrl, target: '_blank', rel: 'noreferrer', title: c.fullName }, c.fullName),
+                        React.createElement('span', { className: 'pmgr-search-item-stars' }, '⭐ ' + c.stars),
+                        c.description ? React.createElement('p', { className: 'pmgr-search-item-desc' }, c.description) : null
+                      ),
+                      React.createElement(
+                        'button',
+                        { className: 'pmgr-btn pmgr-btn-sm', disabled: busy !== null, onClick: () => onInstall('github:' + c.fullName + '#' + c.defaultBranch) },
+                        t('install')
+                      )
+                    )
+                  ),
+                  resolved.noToken ? React.createElement('div', { className: 'pmgr-hint' }, t('githubNoTokenHint')) : null
+                )
+              : null,
             React.createElement(
               'label',
               { className: 'pmgr-check' },
@@ -183,59 +244,47 @@ export function InstallDialog(props) {
               : null,
             results && !results.ok
               ? React.createElement('div', { className: 'pmgr-notice err' }, results.message)
+              : null,
+            results && results.noToken
+              ? React.createElement('div', { className: 'pmgr-hint' }, t('githubNoTokenHint'))
               : null
-          ),
-      React.createElement(
-        'div',
-        { className: 'pmgr-modal-actions' },
-        React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm', onClick: onClose }, t('cancel')),
-        mode === 'direct'
-          ? React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm primary', disabled: busy !== null, onClick: doInstall }, busy === 'install' ? t('installing') : t('install'))
-          : null
-      )
+          )
     )
   );
 }
 
-// 插件卡片：名称+状态 / 元数据 / 描述 / 操作（主要按钮 + ••• 菜单）
+// 插件卡片：名称+版本(GitHub入口) / 状态；描述与操作（停用+卸载纵向）同一行
 export function PluginCard(props) {
-  const { t, p, busy, onStop, onStart, onLoad, onUninstall } = props;
-  const [menuOpen, setMenuOpen] = React.useState(false);
+  const { t, p, busy, onStop, onStart, onUninstall } = props;
   const sourceLabel = p.source === 'github' ? t('sourceGithub') : p.source === 'npm' ? t('sourceNpm') : p.source === 'local' ? t('sourceLocal') : '';
   const kindLabel = p.kind === 'builtin' ? t('kindBuiltin') : t('kindThird');
-  const meta = [p.version, sourceLabel, kindLabel].filter(Boolean).join(' · ');
+  // meta 信息做成 tag 标签（第三方/内置在前，来源在后）
+  const tags = [];
+  tags.push(React.createElement('span', { key: 'kind', className: 'pmgr-tag ' + (p.kind === 'builtin' ? 'pmgr-tag-builtin' : 'pmgr-tag-third') }, kindLabel));
+  if (sourceLabel) tags.push(React.createElement('span', { key: 'source', className: 'pmgr-tag pmgr-tag-source' }, sourceLabel));
 
-  const primary = [];
+  // 操作列：主操作（停用/启用）在上，卸载在下，纵向排列。
+  // 「启用」覆盖两种内部情形：已装载但被停用（移除 disabled 标记）、
+  // 已安装但未装载（bundle→加 bundles；非 bundle→写 patch insert 条目）。
+  // 不再暴露独立的「装载」动作——装载是启用的内部实现，不是用户可见状态。
+  const actions = [];
   if (p.kind === 'third-party') {
     if (p.mounted && p.enabled) {
-      primary.push(React.createElement('button', { key: 'stop', className: 'pmgr-btn pmgr-btn-sm', disabled: busy !== null, onClick: onStop }, t('actionStop')));
-    } else if (p.mounted && !p.enabled) {
-      primary.push(React.createElement('button', { key: 'start', className: 'pmgr-btn pmgr-btn-sm', disabled: busy !== null, onClick: onStart }, t('actionStart')));
-    } else if (p.isBundle && p.installed) {
-      primary.push(React.createElement('button', { key: 'load', className: 'pmgr-btn pmgr-btn-sm', disabled: busy !== null, onClick: onLoad }, t('actionLoad')));
+      actions.push(React.createElement('button', { key: 'stop', className: 'pmgr-btn pmgr-btn-sm', disabled: busy !== null, onClick: onStop }, t('actionStop')));
+    } else if (p.installed) {
+      actions.push(React.createElement('button', { key: 'start', className: 'pmgr-btn pmgr-btn-sm', disabled: busy !== null, onClick: onStart }, t('actionStart')));
     }
+    actions.push(React.createElement('button', { key: 'uninstall', className: 'pmgr-btn pmgr-btn-sm danger', disabled: busy !== null, onClick: onUninstall }, t('actionUninstall')));
   }
 
-  const menuItems = [];
-  if (p.githubUrl) {
-    menuItems.push(
-      React.createElement(
-        'button',
-        { key: 'gh', className: 'pmgr-menu-item', onClick: () => { setMenuOpen(false); window.open(p.githubUrl, '_blank'); } },
-        t('openGithub')
-      )
-    );
-  }
-  if (p.kind === 'third-party') {
-    if (menuItems.length) menuItems.push(React.createElement('div', { key: 'sep', className: 'pmgr-menu-sep' }));
-    menuItems.push(
-      React.createElement(
-        'button',
-        { key: 'uninstall', className: 'pmgr-menu-item danger', onClick: () => { setMenuOpen(false); onUninstall(); } },
-        t('uninstallTitle')
-      )
-    );
-  }
+  // 版本号跟在包名后，作为跳转 GitHub 的入口（下划线 + 右侧箭头）
+  const versionEl = p.version
+    ? p.githubUrl
+      ? React.createElement('a', { className: 'pmgr-version', href: p.githubUrl, target: '_blank', rel: 'noreferrer', title: t('openGithub') },
+          p.version,
+          React.createElement('span', { className: 'pmgr-version-arrow', 'aria-hidden': 'true' }, '↗'))
+      : React.createElement('span', { className: 'pmgr-version' }, p.version)
+    : null;
 
   const busyThis = busy === p.name || busy === 'install';
 
@@ -245,26 +294,25 @@ export function PluginCard(props) {
     React.createElement(
       'div',
       { className: 'pmgr-card-top' },
-      React.createElement('span', { className: 'pmgr-name', title: p.name }, p.name),
+      React.createElement(
+        'div',
+        { className: 'pmgr-card-name' },
+        React.createElement('span', { className: 'pmgr-name', title: p.name }, p.name),
+        versionEl
+      ),
       React.createElement(RuntimeState, { t, p })
     ),
-    meta ? React.createElement('div', { className: 'pmgr-card-meta-line' }, meta) : null,
-    p.description ? React.createElement('p', { className: 'pmgr-card-desc', title: p.description }, p.description) : null,
-    primary.length || menuItems.length
-      ? React.createElement(
-          'div',
-          { className: 'pmgr-card-actions' },
-          primary,
-          menuItems.length
-            ? React.createElement(
-                'div',
-                { className: 'pmgr-menu' },
-                React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm pmgr-menu-toggle', disabled: busy !== null, onClick: () => setMenuOpen(!menuOpen) }, '•••'),
-                menuOpen ? React.createElement('div', { className: 'pmgr-menu-pop' }, menuItems) : null
-              )
-            : null,
-          busyThis ? React.createElement('span', { className: 'pmgr-foot' }, t('processing')) : null
-        )
-      : null
+    tags.length ? React.createElement('div', { className: 'pmgr-card-tags' }, tags) : null,
+    React.createElement(
+      'div',
+      { className: 'pmgr-card-body' },
+      React.createElement(
+        'div',
+        { className: 'pmgr-card-desc-wrap' },
+        p.description ? React.createElement('p', { className: 'pmgr-card-desc', title: p.description }, p.description) : null
+      ),
+      actions.length ? React.createElement('div', { className: 'pmgr-card-actions' }, actions) : null
+    ),
+    busyThis ? React.createElement('div', { className: 'pmgr-foot' }, t('processing')) : null
   );
 }

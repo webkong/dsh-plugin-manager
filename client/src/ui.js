@@ -1,6 +1,7 @@
 // 插件管理页主组件：编排头部 / 状态筛选 / 工具栏 / 插件列表 / 安装弹窗 / 操作弹窗
 import React from 'react';
 import { pmgr } from './api.js';
+import { markRestartPending } from './toast.js';
 import { StatusTabs, PluginToolbar, InstallDialog, PluginCard } from './components.js';
 
 export function PluginManagerTab(props) {
@@ -15,6 +16,7 @@ export function PluginManagerTab(props) {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const [installOpen, setInstallOpen] = React.useState(false);
+  const [countdown, setCountdown] = React.useState(null);
 
   const refresh = (silent) => {
     if (!silent) setState((s) => ({ ...s, loading: true, error: null }));
@@ -26,6 +28,18 @@ export function PluginManagerTab(props) {
   React.useEffect(() => {
     refresh(true);
   }, []);
+
+  // 重启倒计时：每 1s 减一，到 0 自动刷新页面
+  React.useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      try { window.location.reload(); } catch (e) {}
+      setCountdown(null);
+      return;
+    }
+    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   const d = state.data;
   const plugins = d && d.plugins ? d.plugins : [];
@@ -40,13 +54,15 @@ export function PluginManagerTab(props) {
         const opName = t(method === 'install' ? 'opInstall' : method === 'uninstall' ? 'opUninstall' : method === 'stop' ? 'opStop' : method === 'start' ? 'opStart' : 'opRestart');
         if (data && data.ok) {
           if (data.restarting) {
-            setModal({ kind: 'ok', title: opName + ' ' + t('success'), text: data.message || '', output: data.output || null });
+            setModal({ kind: 'ok', op: method, title: opName + ' ' + t('success'), text: data.message || '', output: data.output || null });
+            markRestartPending();
+            setCountdown(10);
           } else {
-            setModal({ kind: 'ok', title: opName + ' ' + t('success'), text: data.message || t('ok'), output: data.output || null, pendingRestart: method === 'install' || method === 'uninstall' });
+            setModal({ kind: 'ok', op: method, title: opName + ' ' + t('success'), text: data.message || t('ok'), output: data.output || null, pendingRestart: method === 'install' || method === 'uninstall' });
             refresh(true);
           }
         } else {
-          setModal({ kind: 'err', title: opName + ' ' + t('failed'), text: (data && data.message) || t('opFailed'), output: (data && data.output) || null });
+          setModal({ kind: 'err', op: method, title: opName + ' ' + t('failed'), text: (data && data.message) || t('opFailed'), output: (data && data.output) || null });
         }
       })
       .catch((e) => setModal({ kind: 'err', title: t('opFailed'), text: String((e && e.message) || e), output: null }))
@@ -71,11 +87,22 @@ export function PluginManagerTab(props) {
     setBusy('restart');
     pmgr.restart()
       .then((res) => {
-        if (res && res.ok) setModal({ kind: 'ok', title: t('opRestart'), text: res.message || t('restarting'), output: null });
-        else setModal({ kind: 'err', title: t('opRestart') + ' ' + t('failed'), text: (res && res.message) || t('restartFailed'), output: null });
+        if (res && res.ok) {
+          setModal({ kind: 'ok', title: t('opRestart'), text: res.message || t('restarting'), output: null });
+          markRestartPending();
+          setCountdown(10);
+        } else setModal({ kind: 'err', title: t('opRestart') + ' ' + t('failed'), text: (res && res.message) || t('restartFailed'), output: null });
       })
       .catch((e) => setModal({ kind: 'err', title: t('opRestart') + ' ' + t('failed'), text: String((e && e.message) || e), output: null }))
       .finally(() => setBusy(null));
+  };
+
+  const doReload = () => {
+    try {
+      window.location.reload();
+    } catch (e) {
+      setModal(null);
+    }
   };
 
   // 卡片操作
@@ -132,7 +159,7 @@ export function PluginManagerTab(props) {
       ),
       open
         ? list.length
-          ? React.createElement('div', { className: 'pmgr-group' }, list.map((p) => React.createElement(PluginCard, { key: p.name, t, p, busy, onStop: () => confirmStop(p.name), onStart: () => doStart(p.name), onLoad: () => doStart(p.name), onUninstall: () => confirmUninstall(p.name) })))
+          ? React.createElement('div', { className: 'pmgr-group' }, list.map((p) => React.createElement(PluginCard, { key: p.name, t, p, busy, onStop: () => confirmStop(p.name), onStart: () => doStart(p.name), onUninstall: () => confirmUninstall(p.name) })))
           : React.createElement('div', { className: 'pmgr-empty' }, t('noResults'))
         : null
     );
@@ -209,7 +236,6 @@ export function PluginManagerTab(props) {
               React.createElement('p', { className: 'pmgr-modal-text' }, confirm.message)
             ),
             React.createElement('div', { className: 'pmgr-modal-actions' },
-              React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm', onClick: () => setConfirm(null) }, t('cancel')),
               React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm danger', onClick: () => { setConfirm(null); confirm.onConfirm(); } }, t('ok'))
             )
           )
@@ -229,10 +255,14 @@ export function PluginManagerTab(props) {
             ),
             React.createElement('div', { className: 'pmgr-modal-body' },
               React.createElement('p', { className: 'pmgr-modal-text' }, modal.text),
+              countdown !== null ? React.createElement('p', { className: 'pmgr-countdown' }, t('autoRefreshIn', { n: countdown })) : null,
               modal.output ? React.createElement('pre', { className: 'pmgr-output' }, modal.output) : null
             ),
             React.createElement('div', { className: 'pmgr-modal-actions' },
-              modal.pendingRestart ? React.createElement('button', { className: 'pmgr-btn', onClick: doRestartNow, disabled: busy !== null }, t('restartNow')) : null,
+              modal.kind === 'ok' && modal.op === 'uninstall'
+                ? React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm', onClick: doReload }, t('refresh'))
+                : null,
+              modal.pendingRestart ? React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm', onClick: doRestartNow, disabled: busy !== null }, t('restartNow')) : null,
               React.createElement('button', { className: 'pmgr-btn pmgr-btn-sm', onClick: () => setModal(null) }, t('ok'))
             )
           )

@@ -5,6 +5,11 @@ const NPM_SPEC = /^(@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*(?:@[^@\s]+)?
 const LOCAL_SPEC = /^(file|link):.+|^\.{1,2}\/.+|^\/.+/
 const URL_SPEC = /^https?:\/\/[^\s]+/
 
+// 是否「裸包名」（无 @scope、无 owner/repo、无前缀）——这类名字 npm/github 可能同名，需要探测
+export function isBareName(spec) {
+  return typeof spec === 'string' && /^[a-z0-9][a-z0-9._~-]*$/.test(spec.trim())
+}
+
 export function validateSpec(spec) {
   if (typeof spec !== 'string' || spec.trim() === '') {
     return { ok: false, error: '插件标识不能为空' }
