@@ -13,6 +13,7 @@ export const zh = {
 
   installPlaceholder: '安装：插件名 / github:owner/repo#main / 任意 pnpm 包标识',
   install: '安装',
+  installTitle: '安装',
   installing: '安装中…',
 
   groupThird: '三方插件',
@@ -85,6 +86,7 @@ export const en = {
 
   installPlaceholder: 'Install: package name / github:owner/repo#main / any pnpm spec',
   install: 'Install',
+  installTitle: 'Install',
   installing: 'Installing…',
 
   groupThird: 'Third-party plugins',

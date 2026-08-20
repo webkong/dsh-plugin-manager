@@ -385,6 +385,7 @@ export function PluginManagerTab(props) {
           : null
       )
     ),
+    React.createElement('h3', { className: 'pmgr-section-title' }, t('installTitle')),
     React.createElement(
       'div',
       { className: 'pmgr-install' },
