@@ -1,16 +1,17 @@
-// 安装 spec 客户端校验（与 Host lib/spec.js 同规则）
+// 安装 spec 校验：npm 包名 / github:owner/repo#ref / owner/repo 简写 / 本地路径 / tarball URL
+
 const GITHUB_SPEC = /^github:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:#[^\s]+)?$/
 const GITHUB_SHORTHAND = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:#[^\s]+)?$/
 const NPM_SPEC = /^(@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*(?:@[^@\s]+)?$/
 const LOCAL_SPEC = /^(file|link):.+|^\.{1,2}\/.+|^\/.+/
 const URL_SPEC = /^https?:\/\/[^\s]+/
 
-// 是否「裸包名」（无 @scope、无 owner/repo、无前缀）——这类名字 npm/github 可能同名，需要探测
-export function isBareName(spec) {
-  return typeof spec === 'string' && /^[a-z0-9][a-z0-9._~-]*$/.test(spec.trim())
+export interface SpecCheck {
+  ok: boolean
+  error: string
 }
 
-export function validateSpec(spec) {
+export function validateSpec(spec: unknown): SpecCheck {
   if (typeof spec !== 'string' || spec.trim() === '') {
     return { ok: false, error: '插件标识不能为空' }
   }

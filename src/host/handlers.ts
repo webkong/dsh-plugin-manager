@@ -1,7 +1,7 @@
 // HTTP 请求分发：/pmgr/list + /pmgr/{install|uninstall|stop|start}
-import { isLoopback, sendJson, sendError, readBody } from './http.js'
-import { validateSpec } from './spec.js'
-import { createManager } from './manager.js'
+import { isLoopback, sendJson, sendError, readBody } from './http.ts'
+import { validateSpec } from './spec.ts'
+import { createManager, type FsTools } from './manager.ts'
 import {
   readText,
   writeText,
@@ -13,13 +13,29 @@ import {
   dshHome,
   readSettings,
   writeSettings,
-} from './fsutil.js'
+} from './fsutil.ts'
 
-export function createHandler(ctx, profile) {
-  const fsTools = { readText, writeText, readManifest, updateManifest, execBash, profilePath, findDshPkgDir, dshHome, readSettings, writeSettings }
+interface HandlerCtx {
+  get(name: string): unknown
+}
+
+interface Req {
+  method?: string
+  url?: string
+  socket?: { remoteAddress?: string }
+  [Symbol.asyncIterator](): AsyncIterator<Buffer | Uint8Array>
+}
+
+interface Res {
+  writeHead(status: number, headers: Record<string, string>): void
+  end(payload: string): void
+}
+
+export function createHandler(ctx: HandlerCtx, profile: string) {
+  const fsTools: FsTools = { readText, writeText, readManifest, updateManifest, execBash, profilePath, findDshPkgDir, dshHome, readSettings, writeSettings }
   const manager = createManager(ctx, profile, fsTools)
 
-  return async (req, res) => {
+  return async (req: Req, res: Res): Promise<void> => {
     if (!isLoopback(req.socket?.remoteAddress ?? '')) {
       sendError(res, 403, '仅允许本机访问')
       return
@@ -37,7 +53,7 @@ export function createHandler(ctx, profile) {
         return
       }
       const body = await readBody(req)
-      const str = (v) => (typeof v === 'string' ? v : '')
+      const str = (v: unknown) => (typeof v === 'string' ? v : '')
       if (pathname === '/pmgr/install') {
         const spec = str(body.spec).trim()
         const check = validateSpec(spec)

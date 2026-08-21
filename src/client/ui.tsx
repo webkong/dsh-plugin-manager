@@ -1,28 +1,30 @@
+import type { Translate } from './i18n.ts'
+import type { ListResult, PluginView, ModalState, ConfirmState, LoadingState } from './types.ts'
 // 插件管理页主组件：编排头部 / 状态筛选 / 工具栏 / 插件列表 / 安装弹窗 / 操作弹窗
-import React from 'react';
-import { pmgr } from './api.js';
-import { markRestartPending } from './toast.js';
-import { StatusTabs, PluginToolbar, InstallDialog, PluginCard } from './components.js';
+import React from 'react'
+import { pmgr } from './api.ts'
+import { markRestartPending } from './toast.tsx'
+import { StatusTabs, PluginToolbar, InstallDialog, PluginCard } from './components.tsx'
 
-export function PluginManagerTab(props) {
+export function PluginManagerTab(props: { t: Translate }): React.ReactElement {
   const { t } = props;
-  const [state, setState] = React.useState({ loading: true, error: null, data: null });
-  const [busy, setBusy] = React.useState(null);
-  const [modal, setModal] = React.useState(null);
-  const [confirm, setConfirm] = React.useState(null);
-  const [loading, setLoading] = React.useState(null);
+  const [state, setState] = React.useState<{ loading: boolean; error: string | null; data: ListResult | null }>({ loading: true, error: null, data: null });
+  const [busy, setBusy] = React.useState<string | null>(null);
+  const [modal, setModal] = React.useState<ModalState | null>(null);
+  const [confirm, setConfirm] = React.useState<ConfirmState | null>(null);
+  const [loading, setLoading] = React.useState<LoadingState | null>(null);
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [sourceFilter, setSourceFilter] = React.useState('all');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [builtinOpen, setBuiltinOpen] = React.useState(false);
   const [installOpen, setInstallOpen] = React.useState(false);
-  const [countdown, setCountdown] = React.useState(null);
+  const [countdown, setCountdown] = React.useState<number | null>(null);
 
-  const refresh = (silent) => {
+  const refresh = (silent: boolean): void => {
     if (!silent) setState((s) => ({ ...s, loading: true, error: null }));
     pmgr.list()
-      .then((data) => setState({ loading: false, error: null, data }))
-      .catch((e) => setState({ loading: false, error: String((e && e.message) || e), data: null }));
+      .then((data: ListResult) => setState({ loading: false, error: null, data }))
+      .catch((e: unknown) => setState({ loading: false, error: String((e as Error).message || e), data: null }));
   };
 
   React.useEffect(() => {
@@ -33,7 +35,7 @@ export function PluginManagerTab(props) {
   React.useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) {
-      try { window.location.reload(); } catch (e) {}
+      try { window.location.reload(); } catch {}
       setCountdown(null);
       return;
     }
@@ -45,12 +47,12 @@ export function PluginManagerTab(props) {
   const plugins = d && d.plugins ? d.plugins : [];
   const autoRestart = !!(d && d.settings && d.settings.autoRestart);
 
-  const act = (method, args, label, loadingText) => {
+  const act = (method: 'install' | 'uninstall' | 'stop' | 'start' | 'restart', args: unknown, label: string, loadingText?: string) => {
     setBusy(label);
     setModal(null);
     if (loadingText) setLoading({ label: loadingText });
     pmgr[method](args)
-      .then((data) => {
+      .then((data: { ok?: boolean; restarting?: boolean; message?: string; output?: string | null }) => {
         const opName = t(method === 'install' ? 'opInstall' : method === 'uninstall' ? 'opUninstall' : method === 'stop' ? 'opStop' : method === 'start' ? 'opStart' : 'opRestart');
         if (data && data.ok) {
           if (data.restarting) {
@@ -65,7 +67,7 @@ export function PluginManagerTab(props) {
           setModal({ kind: 'err', op: method, title: opName + ' ' + t('failed'), text: (data && data.message) || t('opFailed'), output: (data && data.output) || null });
         }
       })
-      .catch((e) => setModal({ kind: 'err', title: t('opFailed'), text: String((e && e.message) || e), output: null }))
+      .catch((e: unknown) => setModal({ kind: 'err', title: t('opFailed'), text: String((e as Error).message || e), output: null }))
       .finally(() => {
         setBusy(null);
         setLoading(null);
@@ -75,8 +77,8 @@ export function PluginManagerTab(props) {
   const toggleAutoRestart = () => {
     setBusy('settings');
     pmgr.setSettings({ autoRestart: !autoRestart })
-      .then((res) => {
-        if (res && res.ok && res.settings) setState((prev) => ({ ...prev, data: { ...prev.data, settings: res.settings } }));
+      .then((res: { ok?: boolean; settings?: { autoRestart: boolean } } | null) => {
+        if (res && res.ok && res.settings) setState((prev) => ({ ...prev, data: { ...(prev.data ?? {}), settings: res.settings } as ListResult }));
       })
       .catch(() => {})
       .finally(() => setBusy(null));
@@ -86,30 +88,30 @@ export function PluginManagerTab(props) {
     setModal(null);
     setBusy('restart');
     pmgr.restart()
-      .then((res) => {
+      .then((res: { ok?: boolean; message?: string } | null) => {
         if (res && res.ok) {
           setModal({ kind: 'ok', title: t('opRestart'), text: res.message || t('restarting'), output: null });
           markRestartPending();
           setCountdown(10);
         } else setModal({ kind: 'err', title: t('opRestart') + ' ' + t('failed'), text: (res && res.message) || t('restartFailed'), output: null });
       })
-      .catch((e) => setModal({ kind: 'err', title: t('opRestart') + ' ' + t('failed'), text: String((e && e.message) || e), output: null }))
+      .catch((e: unknown) => setModal({ kind: 'err', title: t('opRestart') + ' ' + t('failed'), text: String((e as Error).message || e), output: null }))
       .finally(() => setBusy(null));
   };
 
   const doReload = () => {
     try {
       window.location.reload();
-    } catch (e) {
+    } catch {
       setModal(null);
     }
   };
 
   // 卡片操作
-  const confirmStop = (name) => setConfirm({ title: t('opStop'), message: t('confirmStop', { name }), onConfirm: () => act('stop', { name }, name) });
-  const confirmUninstall = (name) => setConfirm({ title: t('opUninstall'), message: t('confirmUninstall', { name }), onConfirm: () => act('uninstall', { name }, name, t('uninstalling')) });
-  const doStart = (name) => act('start', { name }, name);
-  const doInstall = (spec) => {
+  const confirmStop = (name: string) => setConfirm({ title: t('opStop'), message: t('confirmStop', { name }), onConfirm: () => act('stop', { name }, name) });
+  const confirmUninstall = (name: string) => setConfirm({ title: t('opUninstall'), message: t('confirmUninstall', { name }), onConfirm: () => act('uninstall', { name }, name, t('uninstalling')) });
+  const doStart = (name: string) => act('start', { name }, name);
+  const doInstall = (spec: string) => {
     setInstallOpen(false);
     act('install', { spec }, 'install', t('installing'));
   };
@@ -124,13 +126,13 @@ export function PluginManagerTab(props) {
 
   // 筛选：状态 → 来源 → 搜索
   const filtered = plugins
-    .filter((p) => {
+    .filter((p: PluginView) => {
       if (statusFilter === 'running' && !(p.mounted && p.enabled && !p.missing)) return false;
       if (statusFilter === 'stopped' && !(!p.enabled && !p.missing)) return false;
       if (statusFilter === 'error' && !p.missing) return false;
       return true;
     })
-    .filter((p) => {
+    .filter((p: PluginView) => {
       if (sourceFilter === 'builtin' && p.kind !== 'builtin') return false;
       if (sourceFilter === 'third-party' && p.kind !== 'third-party') return false;
       if (sourceFilter === 'npm' && p.source !== 'npm') return false;
@@ -138,7 +140,7 @@ export function PluginManagerTab(props) {
       if (sourceFilter === 'github' && p.source !== 'github') return false;
       return true;
     })
-    .filter((p) => {
+    .filter((p: PluginView) => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return [p.name, p.description, p.source, p.spec, p.kind].some((v) => String(v || '').toLowerCase().includes(q));
@@ -147,7 +149,7 @@ export function PluginManagerTab(props) {
   const third = filtered.filter((p) => p.kind === 'third-party');
   const builtin = filtered.filter((p) => p.kind === 'builtin');
 
-  const renderSection = (title, list, open, onToggle) =>
+  const renderSection = (title: string, list: PluginView[], open: boolean, onToggle: () => void) =>
     React.createElement(
       'div',
       { className: 'pmgr-group' },
@@ -227,7 +229,7 @@ export function PluginManagerTab(props) {
           { className: 'pmgr-modal-backdrop', onClick: () => setConfirm(null) },
           React.createElement(
             'div',
-            { className: 'pmgr-modal', onClick: (e) => e.stopPropagation() },
+            { className: 'pmgr-modal', onClick: (e: React.MouseEvent) => e.stopPropagation() },
             React.createElement('div', { className: 'pmgr-modal-head' },
               React.createElement('h3', { className: 'pmgr-modal-title' }, confirm.title),
               React.createElement('button', { className: 'pmgr-modal-close', onClick: () => setConfirm(null), 'aria-label': '×' }, '×')
@@ -248,7 +250,7 @@ export function PluginManagerTab(props) {
           { className: 'pmgr-modal-backdrop', onClick: () => setModal(null) },
           React.createElement(
             'div',
-            { className: 'pmgr-modal' + (modal.kind === 'err' ? ' err' : ''), onClick: (e) => e.stopPropagation() },
+            { className: 'pmgr-modal' + (modal.kind === 'err' ? ' err' : ''), onClick: (e: React.MouseEvent) => e.stopPropagation() },
             React.createElement('div', { className: 'pmgr-modal-head' },
               React.createElement('h3', { className: 'pmgr-modal-title' }, modal.title),
               React.createElement('button', { className: 'pmgr-modal-close', onClick: () => setModal(null), 'aria-label': '×' }, '×')

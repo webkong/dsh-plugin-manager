@@ -1,5 +1,4 @@
-// 样式：插件管理页（紧凑后台风格，低视觉噪声）
-const CSS = `
+
 .pmgr-root { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 24px; }
 
 /* 头部 */
@@ -118,16 +117,4 @@ const CSS = `
 @media (max-width: 640px) {
   .pmgr-toolbar { flex-direction: column; align-items: stretch; }
   .pmgr-toolbar-search { flex: none; }
-}
-`;
-const STYLE_ID = 'dsh-plugin-manager/pmgr.css';
-
-export function injectStyles() {
-  if (typeof document !== 'undefined' && document.querySelector('style[data-plugin-css="' + STYLE_ID + '"]') === null) {
-    const tag = document.createElement('style');
-    tag.dataset.plugin = 'dsh-plugin-manager';
-    tag.dataset.pluginCss = STYLE_ID;
-    tag.textContent = CSS;
-    document.head.appendChild(tag);
-  }
 }

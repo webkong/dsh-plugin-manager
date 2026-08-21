@@ -4,14 +4,18 @@ import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-export function resolvePackageDirs(names, profileDir, installPkgDir) {
+export function resolvePackageDirs(
+  names: readonly string[],
+  profileDir: string,
+  installPkgDir: string | undefined,
+): Record<string, string | null> {
   if (!names || !names.length) return {}
   const bases = [profileDir]
   if (installPkgDir) bases.push(installPkgDir)
   const resolvers = bases.map((base) => createRequire(join(base, 'package.json')))
-  const out = {}
+  const out: Record<string, string | null> = {}
   for (const n of names) {
-    let found = null
+    let found: string | null = null
     for (const req of resolvers) {
       try {
         found = req.resolve(n + '/package.json')
@@ -25,18 +29,30 @@ export function resolvePackageDirs(names, profileDir, installPkgDir) {
   return out
 }
 
-export function readPackageMetas(dirs) {
-  const out = {}
+export interface PackageMeta {
+  version: string | null
+  description: string | null
+  homepage: string | null
+  repository: string | null
+  bundlePatch: string | null
+}
+
+export function readPackageMetas(dirs: Record<string, string | null>): Record<string, PackageMeta | null> {
+  const out: Record<string, PackageMeta | null> = {}
   for (const [name, dir] of Object.entries(dirs)) {
     if (!dir) continue
     try {
-      const p = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+      const p: Record<string, unknown> = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+      const repo = p.repository
       out[name] = {
         version: typeof p.version === 'string' ? p.version : null,
         description: typeof p.description === 'string' ? p.description : null,
         homepage: typeof p.homepage === 'string' ? p.homepage : null,
-        repository: typeof p.repository === 'string' ? p.repository : (p.repository && typeof p.repository.url === 'string' ? p.repository.url : null),
-        bundlePatch: p.dsh && p.dsh.bundle && typeof p.dsh.bundle.patch === 'string' ? p.dsh.bundle.patch : null,
+        repository:
+          typeof repo === 'string' ? repo : repo && typeof repo === 'object' && typeof (repo as { url?: unknown }).url === 'string' ? (repo as { url: string }).url : null,
+        bundlePatch: p.dsh && typeof p.dsh === 'object' && (p.dsh as { bundle?: { patch?: unknown } }).bundle && typeof (p.dsh as { bundle: { patch?: unknown } }).bundle.patch === 'string'
+          ? (p.dsh as { bundle: { patch: string } }).bundle.patch
+          : null,
       }
     } catch {
       out[name] = null

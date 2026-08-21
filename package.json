@@ -27,9 +27,10 @@
   "homepage": "https://github.com/webkong/dsh-plugin-manager#readme",
   "scripts": {
     "build": "node build.mjs",
-    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/manager.js && node --check lib/handlers.js && node --check lib/fsutil.js && node --check lib/resolve.js && node --check lib/github.js && node --check lib/patch.js && node --check lib/entryIds.js && node --check lib/http.js && node --check lib/constants.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
+    "check": "npm run typecheck && node --check lib/index.js && node --check lib/client.js",
     "pretest": "pnpm build",
-    "test": "node --test"
+    "test": "node --test test/pure.test.mjs"
   },
   "dsh": {
     "bundle": {
@@ -51,6 +52,9 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.31",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3"
   }
 }

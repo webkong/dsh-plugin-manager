@@ -5,17 +5,91 @@ import { writeFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { resolvePackageDirs, readPackageMetas } from './resolve.js'
-import { findEntryIds } from './entryIds.js'
-import { githubUrlFromSpec, githubUrlFromRepo, specSource, loadGithubToken } from './github.js'
-import { patchHasStop, patchWithStop, patchWithoutStop, patchHasLoad, patchWithoutLoad, patchAppend, loadAddition, stopAddition } from './patch.js'
+import { resolvePackageDirs, readPackageMetas, type PackageMeta } from './resolve.ts'
+import { findEntryIds } from './entryIds.ts'
+import { githubUrlFromSpec, githubUrlFromRepo, specSource, loadGithubToken } from './github.ts'
+import {
+  patchHasStop, patchWithStop, patchWithoutStop, patchHasLoad, patchWithoutLoad,
+  patchAppend, loadAddition, stopAddition,
+} from './patch.ts'
+import type { BashResult, MutateResult, PmgrSettings } from './fsutil.ts'
 
-export function createManager(ctx, profile, fsTools) {
+/** 文件工具集（handlers 从 fsutil 注入） */
+export interface FsTools {
+  readText(absPath: string): Promise<string>
+  writeText(absPath: string, content: string): Promise<boolean>
+  readManifest(dir: string): Promise<Record<string, unknown> | null>
+  updateManifest(dir: string, mutate: (m: Record<string, unknown>) => void): Promise<MutateResult>
+  execBash(command: string, timeoutMs?: number): Promise<BashResult>
+  profilePath(profile: string): string
+  findDshPkgDir(): string
+  dshHome(): string
+  readSettings(): Promise<PmgrSettings>
+  writeSettings(s: PmgrSettings): Promise<PmgrSettings>
+}
+
+/** ctx 最小可用面 */
+interface ManagerCtx {
+  get(name: string): unknown
+}
+
+/** Loader 实时行（最小投影） */
+interface LoaderEntry {
+  id: string
+  options?: { name?: string }
+  disabled?: boolean
+}
+interface Loader {
+  entries(): readonly LoaderEntry[]
+}
+
+/** pluginInventory 实时枚举（最小投影） */
+interface InventoryEntry {
+  moduleName?: string
+  entryId: string
+  enabled?: boolean
+  fiberPhase?: string
+}
+interface PluginInventory {
+  list(): { entries?: readonly InventoryEntry[] } | null
+}
+
+/** 插件清单行（wire 形状） */
+export interface PluginView {
+  name: string
+  version: string | null
+  description: string | null
+  kind: 'builtin' | 'third-party'
+  source: string
+  spec: string | null
+  installed: boolean
+  installDir: string | null
+  inBundles: boolean
+  isBundle: boolean
+  mounted: boolean
+  disabled: boolean
+  disabledByManager: boolean
+  enabled: boolean
+  missing: boolean
+  runtime: { enabled: boolean; fiberPhase: string | null } | null
+  entryIds: string[]
+  githubUrl: string | null
+  homepage: string | null
+}
+
+export interface ManagerResult {
+  ok: boolean
+  message: string
+  output?: string
+  restarting?: boolean
+}
+
+export function createManager(ctx: ManagerCtx, profile: string, fsTools: FsTools) {
   const { readText, writeText, readManifest, updateManifest, execBash, profilePath, findDshPkgDir, dshHome, readSettings, writeSettings } = fsTools
-  const inventory = ctx.get('pluginInventory')
+  const inventory = ctx.get('pluginInventory') as PluginInventory | undefined
 
   // 自动重启 dsh web：读取设置（默认关）；force=true 时无视设置强制重启
-  async function scheduleRestart(force = false) {
+  async function scheduleRestart(force = false): Promise<boolean> {
     if (!force) {
       const settings = await readSettings()
       if (!settings.autoRestart) return false
@@ -44,19 +118,19 @@ export function createManager(ctx, profile, fsTools) {
       return false
     }
   }
-  const loader = ctx.get('loader')
+  const loader = ctx.get('loader') as Loader | undefined
 
-  function shellQuote(s) {
+  function shellQuote(s: string): string {
     return "'" + String(s).replace(/'/g, "'\\''") + "'"
   }
 
-  function tail(text, max) {
+  function tail(text: string, max: number): string {
     if (!text) return ''
     return text.length > max ? '…' + text.slice(-max) : text
   }
 
   // Loader 根 include 前缀（entry.id 形如 "include:xxx"，补丁定位用去前缀后的行 id）
-  function includePrefix() {
+  function includePrefix(): string {
     if (!loader) return ''
     for (const entry of loader.entries()) {
       if (entry.options && entry.options.name === 'cordis:include') return `${entry.id}:`
@@ -64,15 +138,21 @@ export function createManager(ctx, profile, fsTools) {
     return ''
   }
 
-  function rowIdOf(entryId) {
+  function rowIdOf(entryId: string): string {
     const prefix = includePrefix()
     if (prefix.length > 0 && entryId.startsWith(prefix)) return entryId.slice(prefix.length)
     return entryId
   }
 
+  interface InventoryRow {
+    entryIds: string[]
+    enabled: boolean
+    fiberPhase: string | null
+  }
+
   // 读取 Loader 实时行：按包名聚合（moduleName → 行 id 列表 / enabled / fiberPhase）
-  function readInventoryRows() {
-    const byName = new Map()
+  function readInventoryRows(): Map<string, InventoryRow> {
+    const byName = new Map<string, InventoryRow>()
     try {
       const inv = inventory && typeof inventory.list === 'function' ? inventory.list() : null
       if (inv && Array.isArray(inv.entries)) {
@@ -97,17 +177,17 @@ export function createManager(ctx, profile, fsTools) {
       return { ok: false, message: 'profile 目录不存在或 manifest 无法解析: ' + dir }
     }
     const patchText = await readText(dir + '/cordis.patch.yml')
-    const bundles = Array.isArray(manifest.dsh && manifest.dsh.profile && manifest.dsh.profile.bundles)
-      ? manifest.dsh.profile.bundles
-      : []
-    const deps = manifest.dependencies && typeof manifest.dependencies === 'object' ? manifest.dependencies : {}
+    const dsh = (manifest.dsh && typeof manifest.dsh === 'object' ? manifest.dsh : {}) as { profile?: { bundles?: unknown } }
+    const profileObj = dsh.profile && typeof dsh.profile === 'object' ? dsh.profile : {}
+    const bundles = Array.isArray(profileObj.bundles) ? profileObj.bundles.filter((b): b is string => typeof b === 'string') : []
+    const deps = manifest.dependencies && typeof manifest.dependencies === 'object' ? manifest.dependencies as Record<string, unknown> : {}
 
     const inventoryRows = readInventoryRows()
     const installPkgDir = findDshPkgDir()
 
     // 枚举集合：loader 行 ∪ bundles ∪ dependencies ∪ 锚点内置包
-    const names = []
-    const seen = new Set()
+    const names: string[] = []
+    const seen = new Set<string>()
     for (const n of inventoryRows.keys()) {
       if (!seen.has(n)) { seen.add(n); names.push(n) }
     }
@@ -121,20 +201,20 @@ export function createManager(ctx, profile, fsTools) {
     const dirs = resolvePackageDirs(names, dir, installPkgDir)
     const metas = readPackageMetas(dirs)
 
-    const plugins = []
+    const plugins: PluginView[] = []
     for (const nm of names) {
       const pkgDir = dirs[nm]
-      const meta = metas[nm]
-      const spec = deps[nm] || null
+      const meta: PackageMeta | null = metas[nm]
+      const spec = deps[nm] !== undefined && deps[nm] !== null ? String(deps[nm]) : null
       const inv = inventoryRows.get(nm)
       const installed = !!pkgDir
       const isBundle = !!(meta && meta.bundlePatch)
       const mounted = !!inv
       const disabledByManager = patchHasStop(patchText, nm)
       const disabled = disabledByManager || (inv ? !inv.enabled : false)
-      const kind = Object.prototype.hasOwnProperty.call(deps, nm) ? 'third-party' : 'builtin'
+      const kind: 'builtin' | 'third-party' = Object.prototype.hasOwnProperty.call(deps, nm) ? 'third-party' : 'builtin'
 
-      let entryIds = inv ? [...inv.entryIds] : []
+      let entryIds: string[] = inv ? [...inv.entryIds] : []
       if (kind === 'third-party' && entryIds.length === 0 && meta && meta.bundlePatch && pkgDir) {
         const patchYaml = await readText(pkgDir + '/' + meta.bundlePatch)
         entryIds = findEntryIds(patchYaml, nm)
@@ -191,7 +271,7 @@ export function createManager(ctx, profile, fsTools) {
     }
   }
 
-  async function install(spec) {
+  async function install(spec: string): Promise<ManagerResult> {
     if (!spec || !String(spec).trim()) return { ok: false, message: '缺少插件标识' }
     const clean = String(spec).trim()
     const res = await execBash('dsh plugin --profile ' + profile + ' add ' + shellQuote(clean), 300000)
@@ -210,7 +290,7 @@ export function createManager(ctx, profile, fsTools) {
     return { ok: false, message: '安装失败（退出码 ' + res.exitCode + '）', output: tail(out, 2000) }
   }
 
-  async function uninstall(name) {
+  async function uninstall(name: string): Promise<ManagerResult> {
     if (!name) return { ok: false, message: '缺少插件名' }
     const dir = profilePath(profile)
     const res = await execBash('dsh plugin --profile ' + profile + ' remove ' + shellQuote(name), 300000)
@@ -234,10 +314,10 @@ export function createManager(ctx, profile, fsTools) {
     }
   }
 
-  async function stop(name) {
+  async function stop(name: string): Promise<ManagerResult> {
     const dir = profilePath(profile)
     const listRes = await list()
-    const plugin = listRes.plugins && listRes.plugins.find((p) => p.name === name)
+    const plugin = listRes.plugins && listRes.plugins.find((p: PluginView) => p.name === name)
     if (!plugin) return { ok: false, message: '未找到插件 ' + name }
     if (plugin.kind === 'builtin') return { ok: false, message: '内置插件不可停用（属于 DSH 发行版）' }
     if (!plugin.mounted) return { ok: false, message: name + ' 未在装载状态' }
@@ -264,8 +344,10 @@ export function createManager(ctx, profile, fsTools) {
         : { ok: false, message: '写入 cordis.patch.yml 失败' }
     }
     const mres = await updateManifest(dir, (m) => {
-      const bundles = (m.dsh && m.dsh.profile && m.dsh.profile.bundles) || []
-      m.dsh.profile.bundles = bundles.filter((b) => b !== name)
+      const mDsh = (m.dsh && typeof m.dsh === 'object' ? m.dsh : {}) as { profile?: { bundles?: unknown } }
+      const mProfile = mDsh.profile && typeof mDsh.profile === 'object' ? mDsh.profile : {}
+      const bundles = Array.isArray(mProfile.bundles) ? mProfile.bundles.filter((b): b is string => typeof b === 'string') : []
+      mProfile.bundles = bundles.filter((b) => b !== name)
     })
     return {
       ok: mres.ok,
@@ -275,14 +357,14 @@ export function createManager(ctx, profile, fsTools) {
     }
   }
 
-  async function start(name) {
+  async function start(name: string): Promise<ManagerResult> {
     const dir = profilePath(profile)
     const listRes = await list()
-    const plugin = listRes.plugins && listRes.plugins.find((p) => p.name === name)
+    const plugin = listRes.plugins && listRes.plugins.find((p: PluginView) => p.name === name)
     if (!plugin) return { ok: false, message: '未找到插件 ' + name }
     // 1) 移除停用 patch 条目
     const patchText = await readText(dir + '/cordis.patch.yml')
-    let message = null
+    let message: string | null = null
     if (patchHasStop(patchText, name)) {
       const cleaned = patchWithoutStop(patchText, name)
       const ok = await writeText(dir + '/cordis.patch.yml', cleaned)
@@ -292,10 +374,11 @@ export function createManager(ctx, profile, fsTools) {
     // 2) 若不在 bundles 且声明了 dsh.bundle，补回装载列表
     if (!plugin.inBundles && plugin.isBundle && plugin.installed) {
       const mres = await updateManifest(dir, (m) => {
-        if (!m.dsh) m.dsh = {}
-        if (!m.dsh.profile) m.dsh.profile = {}
-        if (!Array.isArray(m.dsh.profile.bundles)) m.dsh.profile.bundles = []
-        if (m.dsh.profile.bundles.indexOf(name) === -1) m.dsh.profile.bundles.push(name)
+        const mDsh = (m.dsh && typeof m.dsh === 'object' ? m.dsh : {}) as { profile?: { bundles?: unknown } }
+        const mProfile = mDsh.profile && typeof mDsh.profile === 'object' ? mDsh.profile : {}
+        if (!Array.isArray(mProfile.bundles)) mProfile.bundles = []
+        const list = mProfile.bundles as unknown[]
+        if (list.indexOf(name) === -1) list.push(name)
       })
       if (!mres.ok) return mres
       message = message || ('已加入装载列表：' + name + '（重启后生效）')
@@ -320,9 +403,9 @@ export function createManager(ctx, profile, fsTools) {
   }
 
   // GitHub 仓库搜索（内部复用）：返回 { ok, items|message, rateLimited, noToken }
-  async function githubSearch(q) {
+  async function githubSearch(q: string) {
     const url = 'https://api.github.com/search/repositories?q=' + encodeURIComponent(q) + '&sort=stars&order=desc&per_page=20'
-    const headers = { 'User-Agent': 'dsh-plugin-manager', Accept: 'application/vnd.github+json' }
+    const headers: Record<string, string> = { 'User-Agent': 'dsh-plugin-manager', Accept: 'application/vnd.github+json' }
     const token = loadGithubToken()
     const noToken = !token
     if (token) headers.Authorization = 'Bearer ' + token
@@ -341,24 +424,28 @@ export function createManager(ctx, profile, fsTools) {
         return { ok: false, noToken, message: 'GitHub token 无效或已过期，请检查 GH_TOKEN / gh auth login', items: [] }
       }
       if (!res.ok) return { ok: false, noToken, message: 'GitHub 搜索失败 HTTP ' + res.status, items: [] }
-      const data = await res.json()
-      const items = (data.items || []).map((r) => ({
-        fullName: r.full_name || '',
-        name: r.name || '',
-        description: r.description || '',
-        htmlUrl: r.html_url || '',
-        stars: r.stargazers_count || 0,
-        owner: (r.owner && r.owner.login) || '',
-        defaultBranch: r.default_branch || 'main',
-      }))
+      const data = await res.json() as { items?: unknown[] }
+      const items = (data.items || []).map((r) => {
+        const row = r as Record<string, unknown>
+        const owner = row.owner && typeof row.owner === 'object' ? (row.owner as Record<string, unknown>).login : ''
+        return {
+          fullName: String(row.full_name || ''),
+          name: String(row.name || ''),
+          description: String(row.description || ''),
+          htmlUrl: String(row.html_url || ''),
+          stars: Number(row.stargazers_count || 0),
+          owner: typeof owner === 'string' ? owner : '',
+          defaultBranch: String(row.default_branch || 'main'),
+        }
+      })
       return { ok: true, noToken, items }
     } catch (e) {
-      return { ok: false, noToken, message: 'GitHub 搜索失败: ' + String((e && e.message) || e), items: [] }
+      return { ok: false, noToken, message: 'GitHub 搜索失败: ' + String((e && (e as Error).message) || e), items: [] }
     }
   }
 
   // 搜索 GitHub 上的 dsh-plugin 插件（topic:dsh-plugin）
-  async function search(query) {
+  async function search(query: unknown) {
     const raw = typeof query === 'string' ? query.trim() : ''
     const q = raw === '' ? 'topic:dsh-plugin' : raw + ' topic:dsh-plugin'
     const res = await githubSearch(q)
@@ -368,7 +455,7 @@ export function createManager(ctx, profile, fsTools) {
   }
 
   // 解析裸包名：先探测公共 npm，404 再搜 GitHub，区分 npm / github / none
-  async function resolve(name) {
+  async function resolve(name: unknown) {
     const raw = typeof name === 'string' ? name.trim() : ''
     if (!raw) return { ok: false, message: '缺少插件名' }
     // ① 探测公共 npm registry（HEAD 仅取状态码，避免下载整包元数据）
@@ -384,14 +471,14 @@ export function createManager(ctx, profile, fsTools) {
     return { ok: true, input: raw, type: 'github', spec: null, candidates: gh.items, noToken: gh.noToken }
   }
 
-  async function setSettings(patch) {
+  async function setSettings(patch: unknown) {
     const current = await readSettings()
     const next = { ...current, ...(patch && typeof patch === 'object' ? patch : {}) }
     await writeSettings(next)
     return { ok: true, settings: next }
   }
 
-  async function restart() {
+  async function restart(): Promise<ManagerResult> {
     const started = await scheduleRestart(true)
     return started
       ? { ok: true, restarting: true, message: '正在自动重启 dsh web（约 10 秒后刷新页面生效）' }

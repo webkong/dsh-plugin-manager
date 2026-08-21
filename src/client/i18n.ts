@@ -1,4 +1,4 @@
-// 插件多语言文案（zh / en）
+// 插件多语言文案（zh / en）；zh 键全集即词典契约（DictKey），en 必须键齐全
 export const zh = {
   // 页面头部
   tabLabel: '插件管理',
@@ -81,9 +81,9 @@ export const zh = {
   // 其他
   loading: '加载中…',
   processing: '处理中…',
-};
+} as const;
 
-export const en = {
+export const en: Record<keyof typeof zh, string> = {
   tabLabel: 'Plugin Manager',
   currentProfile: 'Current Profile',
   refresh: 'Refresh',
@@ -158,3 +158,7 @@ export const en = {
   loading: 'Loading…',
   processing: 'Working…',
 };
+
+export type DictKey = keyof typeof zh
+/** 翻译函数：key 接受任意字符串（运行时按词典查找） */
+export type Translate = (key: string, params?: Record<string, unknown>) => string
