@@ -1,6 +1,6 @@
 {
   "name": "@webkong/dsh-plugin-manager",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "DSH 插件管理器：在 Web 设置页列出内置/三方插件，支持安装、卸载、启动、停用，并直跳三方插件 GitHub 仓库。",
   "license": "MIT",
   "keywords": [
@@ -28,6 +28,7 @@
   "scripts": {
     "build": "node build.mjs",
     "prepare": "node build.mjs",
+    "version": "node build.mjs && git add lib",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "check": "npm run typecheck && node --check lib/index.js && node --check lib/client.js",
     "pretest": "pnpm build",

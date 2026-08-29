@@ -1,5 +1,4 @@
 node_modules/
-lib/
 *.pm-tmp
 .DS_Store
 *.log
