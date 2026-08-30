@@ -65,6 +65,13 @@ dsh plugin --profile web add /path/to/dsh-plugin-manager
 
 重启 dsh web 后，进入 设置 → 插件 → **插件管理** 即可使用。
 
+## 🔖 版本兼容
+
+| 插件版本 | 兼容的 dsh 版本 | 说明 |
+| --- | --- | --- |
+| **0.6.x** | ≥ 0.1.1-rc.2（已验证 0.1.1-rc.2 与 0.1.2-alpha.1） | client `inject` 移除 `dsh-client-runtime`（该包自 dsh 0.1.2 起被移除） |
+| ≤ 0.5.x | ≤ 0.1.1-rc.x | dsh ≥ 0.1.2 上旧版 client 将因等待不存在的 `dsh-client-runtime` 而无法加载 |
+
 ## ⚙️ 配置
 
 默认管理 `web` profile。可在装载行配置覆盖，并关闭自动重启：

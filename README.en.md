@@ -65,6 +65,13 @@ dsh plugin --profile web add /path/to/dsh-plugin-manager
 
 Restart dsh web, then open 设置 → 插件 → **Plugin Manager**.
 
+## 🔖 Version Compatibility
+
+| Plugin version | Compatible dsh versions | Notes |
+| --- | --- | --- |
+| **0.6.x** | ≥ 0.1.1-rc.2 (verified on 0.1.1-rc.2 and 0.1.2-alpha.1) | Removed `dsh-client-runtime` from the client `inject` list (that package was removed in dsh 0.1.2) |
+| ≤ 0.5.x | ≤ 0.1.1-rc.x | On dsh ≥ 0.1.2 older clients never load while waiting for the removed `dsh-client-runtime` |
+
 ## ⚙️ Configuration
 
 The `web` profile is managed by default. Override it — and disable auto-restart — in the load row:
