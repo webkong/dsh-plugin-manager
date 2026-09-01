@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="#-features">Features</a> ·
+  <a href="#-version-compatibility">Compatibility</a> ·
   <a href="#-installation">Installation</a> ·
   <a href="#-configuration">Configuration</a> ·
   <a href="#-development">Development</a> ·
@@ -54,31 +55,65 @@ No more hunting through GitHub, typing CLI commands, or hand-editing configs. Op
 
 > ⚠️ Install / uninstall / stop / start take effect **after a restart** (stop/start may apply immediately when HMR is active).
 
+## 🔖 Version Compatibility
+
+Check your dsh version first (`dsh --version`), then pick the plugin version from this table:
+
+| Plugin version | Targets dsh | 0.1.1-rc.2 | 0.1.2-alpha.3 | Notes |
+| --- | --- | :---: | :---: | --- |
+| **0.7.x** (current) | **0.1.1-rc.2 … 0.1.2-alpha.x** | ✅ verified | ✅ verified | One codebase for both generations: it handles the sync *and* async signatures of `pluginInventory.list()`, and tags agent-preset composition rows on dsh 0.1.2 |
+| 0.6.x | 0.1.1-rc.2 … 0.1.2-alpha.x | ✅ | ⚠️ degraded | On dsh ≥ 0.1.2 `list()` became async; reading it synchronously makes the inventory **silently collapse** to the profile's `bundles`/`dependencies` rows, all shown as not mounted — with no error at all |
+| ≤ 0.5.x | ≤ 0.1.1-rc.x | ✅ | ❌ broken | The client `inject` list still references `dsh-client-runtime`, removed in dsh 0.1.2, so the client never loads (the settings tab never appears) |
+
+> Bottom line: **use 0.7.x on any dsh generation** — it stays fully backward compatible with 0.1.1, so there is no reason to stay on an older release.
+
+<details>
+<summary>v0.7.0 measured results</summary>
+
+| dsh version | `/pmgr/list` inventory | The plugin itself |
+| --- | --- | --- |
+| 0.1.1-rc.2 | 142 rows (141 mounted) | `entryIds:["pmgr"]`, `fiberPhase:"active"` |
+| 0.1.2-alpha.3 | 160 rows (159 mounted, 32 of them mounted by agent-preset compositions) | same |
+
+(For comparison: 0.6.x on dsh 0.1.2 enumerates only 4 rows, all `mounted:false`.)
+
+</details>
+
 ## 📦 Installation
 
 ```bash
-# From GitHub
+# 0. Know your dsh version and the target profile
+dsh --version
+
+# 1. From GitHub (recommended; main is the latest)
 dsh plugin --profile web add github:webkong/dsh-plugin-manager#main
 
-# Or from a local path (development)
+# Or pin a release tag
+dsh plugin --profile web add github:webkong/dsh-plugin-manager#v0.7.0
+
+# Or from a local path (development / offline)
 dsh plugin --profile web add /path/to/dsh-plugin-manager
+
+# 2. Restart dsh web
 ```
 
-Restart dsh web, then open 设置 → 插件 → **Plugin Manager**.
+Then open 设置 → 插件 → **Plugin Manager**.
 
-## 🔖 Version Compatibility
+### 💡 Installation tips
 
-| Plugin version | Compatible dsh versions | Notes |
-| --- | --- | --- |
-| **0.7.x** | ≥ 0.1.1-rc.2 (verified on 0.1.1-rc.2 and 0.1.2-alpha.3) | dsh 0.1.2 adaptation: `pluginInventory.list()` became async and the snapshot gained agent-preset composition rows; Host services (`pluginInventory` / `loader`) are now resolved lazily per call; client `inject` points at the real runtime package `dsh-client-ui-renderer` |
-| 0.6.x | 0.1.1-rc.2 … 0.1.2-alpha.x (degraded on 0.1.2) | On dsh ≥ 0.1.2 the list silently collapses to the profile's `bundles`/`dependencies` rows, all shown as not mounted (the now-Promise `list()` was read synchronously) |
-| ≤ 0.5.x | ≤ 0.1.1-rc.x | On dsh ≥ 0.1.2 older clients never load while waiting for the removed `dsh-client-runtime` |
+- **Match the profile**: `--profile <name>` must be the profile you actually boot (`dsh web` boots `web`). To manage a *different* profile, set `config.profile` on the load row (see Configuration).
+- **Restart is required**: install / uninstall / stop / start all rewrite profile configuration and take effect **after restarting dsh web**. Enable "auto-restart after install" in the UI to let the plugin do it for you (10s countdown, page auto-refresh).
+- **No build step**: `lib/` build artifacts are committed, so `add` is enough — you do not need to run `pnpm build` in the plugin directory.
+- **Upgrading**: re-run the same `add` command (GitHub sources are re-fetched), then restart. For a local `link:` install, run `pnpm build` in the plugin directory and restart.
+- **Uninstalling**: click Uninstall in the UI, or `dsh plugin --profile web remove @webkong/dsh-plugin-manager`, then restart.
+- **Never load it twice**: after `add`, the plugin already sits in `dsh.profile.bundles` — do **not** also `insert` an `id: pmgr` row in the profile's `cordis.patch.yml`. dsh ≥ 0.1.2 refuses to boot (`duplicate loader entry id: pmgr`). Use the override form below instead.
+- **GitHub rate limits**: set `GH_TOKEN` (or run `gh auth login`) before using "Search GitHub", otherwise you get roughly 10 requests/min.
 
 ## ⚙️ Configuration
 
 The `web` profile is managed by default. After `dsh plugin add` the plugin already sits in `dsh.profile.bundles`
 (its bundle patch inserts the `pmgr` row), so configure it by **overriding that row** in the profile's
-`cordis.patch.yml` — never `insert` the same id twice:
+`cordis.patch.yml` — a patch entry with `id` and without `insert` is an override:
 
 ```yaml
 - id: pmgr
@@ -112,7 +147,7 @@ dsh-plugin-manager/
 ├── build.mjs                 # esbuild 3-stage build (Host / Client / pure-function submodules)
 ├── tsconfig.json             # Host type-check (node env)
 ├── tsconfig.client.json      # Client type-check (DOM + React env)
-├── lib/                      # build artifacts (gitignored)
+├── lib/                      # build artifacts (committed; zero-config after install)
 │   ├── index.js              # Host single-file ESM bundle
 │   ├── client.js             # Client __ModuleLoader__ bundle
 │   ├── entryIds.js           # pure-function submodules (imported by unit tests)

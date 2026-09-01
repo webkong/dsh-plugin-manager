@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="#-功能亮点">功能亮点</a> ·
+  <a href="#-版本兼容">版本兼容</a> ·
   <a href="#-安装">安装</a> ·
   <a href="#-配置">配置</a> ·
   <a href="#-开发">开发</a> ·
@@ -54,30 +55,64 @@
 
 > ⚠️ 安装 / 卸载 / 停用 / 启动均在**重启后生效**（若当前进程 HMR 已激活，停用/启动可能即时生效）。
 
+## 🔖 版本兼容
+
+先确认你的 dsh 版本（`dsh --version`），再对照下表选插件版本：
+
+| 插件版本 | 适配的 dsh 版本 | 0.1.1-rc.2 | 0.1.2-alpha.3 | 说明 |
+| --- | --- | :---: | :---: | --- |
+| **0.7.x**（当前） | **0.1.1-rc.2 ～ 0.1.2-alpha.x** | ✅ 实测 | ✅ 实测 | 一份代码同时适配两代：`pluginInventory.list()` 的同步 / 异步两种签名都能处理；dsh 0.1.2 的 agent preset 组合行会额外标出「预设 xxx」 |
+| 0.6.x | 0.1.1-rc.2 ～ 0.1.2-alpha.x | ✅ | ⚠️ 功能受损 | dsh ≥ 0.1.2 起 `list()` 变成 async，旧代码同步读取 → **清单静默退化**：只剩 profile 的 bundles/dependencies 几行且全部显示「未装载」，且无任何报错 |
+| ≤ 0.5.x | ≤ 0.1.1-rc.x | ✅ | ❌ 不可用 | client `inject` 仍引用 dsh 0.1.2 已移除的 `dsh-client-runtime`，client 完全不加载（插件管理页出不来） |
+
+> 结论：**无论你用哪一代 dsh，都建议直接用 0.7.x** —— 它对 0.1.1 完全向下兼容，没有停留在旧版本的理由。
+
+<details>
+<summary>v0.7.0 实测数据</summary>
+
+| dsh 版本 | `/pmgr/list` 枚举 | 本插件自身 |
+| --- | --- | --- |
+| 0.1.1-rc.2 | 142 行（mounted 141） | `entryIds:["pmgr"]`、`fiberPhase:"active"` |
+| 0.1.2-alpha.3 | 160 行（mounted 159，其中 32 行由 agent preset 组合装载） | 同上 |
+
+（对比：0.6.x 在 0.1.2 上只能枚举到 4 行，且全部 `mounted:false`。）
+
+</details>
+
 ## 📦 安装
 
 ```bash
-# 从 GitHub 安装
+# 0. 先看清楚 dsh 版本与要装到哪个 profile
+dsh --version
+
+# 1. 从 GitHub 安装（推荐；main 为最新）
 dsh plugin --profile web add github:webkong/dsh-plugin-manager#main
 
-# 或从本地路径安装（开发）
+# 或锁定某个已发布的版本 tag
+dsh plugin --profile web add github:webkong/dsh-plugin-manager#v0.7.0
+
+# 或从本地路径安装（开发 / 离线）
 dsh plugin --profile web add /path/to/dsh-plugin-manager
+
+# 2. 重启 dsh web 后生效
 ```
 
-重启 dsh web 后，进入 设置 → 插件 → **插件管理** 即可使用。
+重启后进入 设置 → 插件 → **插件管理** 即可使用。
 
-## 🔖 版本兼容
+### 💡 安装建议
 
-| 插件版本 | 兼容的 dsh 版本 | 说明 |
-| --- | --- | --- |
-| **0.7.x** | ≥ 0.1.1-rc.2（已验证 0.1.1-rc.2 与 0.1.2-alpha.3） | 适配 dsh 0.1.2：`pluginInventory.list()` 改为异步、快照新增 agent preset 组合行；Host 服务（`pluginInventory` / `loader`）改为调用时懒解析；client `inject` 指向真实运行时包 `dsh-client-ui-renderer` |
-| 0.6.x | 0.1.1-rc.2 ~ 0.1.2-alpha.x（0.1.2 上功能受损） | 在 dsh ≥ 0.1.2 上清单只剩 profile 的 bundles/dependencies 几行，且全部显示「未装载」（同步读取已变成 Promise 的 `list()`，静默退化为空清单） |
-| ≤ 0.5.x | ≤ 0.1.1-rc.x | dsh ≥ 0.1.2 上旧版 client 将因等待不存在的 `dsh-client-runtime` 而无法加载 |
+- **profile 要对齐**：`--profile <name>` 必须是你实际启动的那个 profile（`dsh web` 默认启动 `web`）。想让插件管理**另一个** profile 的插件，改配置行的 `config.profile`（见下方「配置」）。
+- **装完必须重启**：安装 / 卸载 / 停用 / 启用都是改 profile 配置，**重启 dsh web 才生效**；懒得手动重启就在页面上打开「安装后自动重启」（10 秒倒计时自动刷新页面）。
+- **无需构建**：`lib/` 构建产物已入库，`add` 完直接可用，不需要在插件目录里跑 `pnpm build`。
+- **升级**：重复执行一次上面的 `add` 命令（GitHub 源会重新拉取）后重启即可；本地 `link:` 安装的话在插件目录 `pnpm build` 后重启。
+- **卸载**：页面上点「卸载」，或 `dsh plugin --profile web remove @webkong/dsh-plugin-manager`，然后重启。
+- **不要重复装载**：`add` 之后本插件已经在 `dsh.profile.bundles` 里，**别再在 profile 的 `cordis.patch.yml` 里 `insert` 一次同名 `id: pmgr`** —— dsh ≥ 0.1.2 会直接启动失败（`duplicate loader entry id: pmgr`）。要改配置请用下面的覆盖写法。
+- **GitHub 搜索限流**：需要用「搜索 GitHub」发现插件时，建议先设好 `GH_TOKEN`（或 `gh auth login`），否则约 10 次/分钟。
 
 ## ⚙️ 配置
 
 默认管理 `web` profile。`dsh plugin add` 安装后本插件已在 `dsh.profile.bundles` 里（其 bundle patch 会插入 `pmgr` 行），
-要改配置请在 profile 的 `cordis.patch.yml` 里**覆盖这一行**（不要再 `insert` 一次同名 id）：
+要改配置请在 profile 的 `cordis.patch.yml` 里**覆盖这一行**（带 `id`、不带 `insert` 即为覆盖）：
 
 ```yaml
 - id: pmgr
@@ -111,7 +146,7 @@ dsh-plugin-manager/
 ├── build.mjs                 # esbuild 三阶段构建（Host / Client / 纯函数子模块）
 ├── tsconfig.json             # Host 类型检查（node 环境）
 ├── tsconfig.client.json      # Client 类型检查（DOM + React 环境）
-├── lib/                      # 构建产物（已 gitignore）
+├── lib/                      # 构建产物（已入库，安装后零配置可用）
 │   ├── index.js              # Host 单文件 ESM bundle
 │   ├── client.js             # Client __ModuleLoader__ bundle
 │   ├── entryIds.js           # 纯函数子模块（供单元测试 import）
