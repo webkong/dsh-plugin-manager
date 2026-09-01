@@ -48,10 +48,39 @@ interface InventoryEntry {
   moduleName?: string
   entryId: string
   enabled?: boolean
-  fiberPhase?: string
+  fiberPhase?: string | null
 }
+
+/** agent preset 组合行（dsh ≥ 0.1.2 新增：预设组合装载的插件不在 Loader 根行里） */
+interface PresetPluginRow {
+  entryId?: string | null
+  moduleName?: string
+  /** true / false / 'conditional'（!!js 条件行，只有 Loader 上下文能定夺） */
+  enabled?: boolean | 'conditional'
+  condition?: string
+  fiberPhase?: string | null
+}
+
+interface PresetPluginGroup {
+  id?: string
+  trust?: 'system' | 'user'
+  name?: string
+  isDefault?: boolean
+  broken?: string
+  rows?: readonly PresetPluginRow[]
+}
+
+/**
+ * 快照形状：dsh < 0.1.2 的 list() 同步返回；dsh ≥ 0.1.2 改为 async（Promise），
+ * 并新增 agentPresets。两种形态都用 await 统一处理。
+ */
+interface InventorySnapshot {
+  entries?: readonly InventoryEntry[]
+  agentPresets?: readonly PresetPluginGroup[]
+}
+
 interface PluginInventory {
-  list(): { entries?: readonly InventoryEntry[] } | null
+  list(): InventorySnapshot | Promise<InventorySnapshot> | null
 }
 
 /** 插件清单行（wire 形状） */
@@ -73,6 +102,8 @@ export interface PluginView {
   missing: boolean
   runtime: { enabled: boolean; fiberPhase: string | null } | null
   entryIds: string[]
+  /** 通过 agent preset 组合装载该包的预设 id（dsh ≥ 0.1.2；根 Loader 装载时为空） */
+  presets: string[]
   githubUrl: string | null
   homepage: string | null
 }
@@ -86,7 +117,11 @@ export interface ManagerResult {
 
 export function createManager(ctx: ManagerCtx, profile: string, fsTools: FsTools) {
   const { readText, writeText, readManifest, updateManifest, execBash, profilePath, findDshPkgDir, dshHome, readSettings, writeSettings } = fsTools
-  const inventory = ctx.get('pluginInventory') as PluginInventory | undefined
+
+  // 懒解析：Host 服务异步激活，apply/构造阶段缓存到的可能是 undefined，
+  // 之后所有请求都会静默退化为「空清单」。一律调用时经 ctx.get 取最新实例。
+  const inventoryOf = (): PluginInventory | undefined => ctx.get('pluginInventory') as PluginInventory | undefined
+  const loaderOf = (): Loader | undefined => ctx.get('loader') as Loader | undefined
 
   // 自动重启 dsh web：读取设置（默认关）；force=true 时无视设置强制重启
   async function scheduleRestart(force = false): Promise<boolean> {
@@ -118,7 +153,6 @@ export function createManager(ctx: ManagerCtx, profile: string, fsTools: FsTools
       return false
     }
   }
-  const loader = ctx.get('loader') as Loader | undefined
 
   function shellQuote(s: string): string {
     return "'" + String(s).replace(/'/g, "'\\''") + "'"
@@ -131,6 +165,7 @@ export function createManager(ctx: ManagerCtx, profile: string, fsTools: FsTools
 
   // Loader 根 include 前缀（entry.id 形如 "include:xxx"，补丁定位用去前缀后的行 id）
   function includePrefix(): string {
+    const loader = loaderOf()
     if (!loader) return ''
     for (const entry of loader.entries()) {
       if (entry.options && entry.options.name === 'cordis:include') return `${entry.id}:`
@@ -146,27 +181,81 @@ export function createManager(ctx: ManagerCtx, profile: string, fsTools: FsTools
 
   interface InventoryRow {
     entryIds: string[]
+    /** 有效启用：Loader 根行与 agent preset 组合行任一在用即为 true */
     enabled: boolean
     fiberPhase: string | null
+    presets: string[]
   }
 
-  // 读取 Loader 实时行：按包名聚合（moduleName → 行 id 列表 / enabled / fiberPhase）
-  function readInventoryRows(): Map<string, InventoryRow> {
-    const byName = new Map<string, InventoryRow>()
+  /** 聚合中间态：两条轴（Loader 根行 / 预设组合行）各自记账，最后再合成 enabled */
+  interface RowAccumulator {
+    entryIds: string[]
+    loaderEnabled: boolean | null
+    presetEnabled: boolean | null
+    fiberPhase: string | null
+    presets: string[]
+  }
+
+  /**
+   * 读取 Loader 实时行：按包名聚合（moduleName → 行 id 列表 / enabled / fiberPhase）。
+   * dsh ≥ 0.1.2：list() 返回 Promise，且快照新增 agentPresets（预设组合装载的插件行）。
+   * 这里统一 await（同步返回值 await 后原样透出），并把预设行并入同一张表：
+   * 有的内置插件根行是 disabled、真正生效的是 agent preset 组合行，只看根行会误报「已停用」。
+   */
+  async function readInventoryRows(): Promise<Map<string, InventoryRow>> {
+    const acc = new Map<string, RowAccumulator>()
+    const inventory = inventoryOf()
+    if (!inventory || typeof inventory.list !== 'function') return new Map()
+
+    const rowOf = (name: string): RowAccumulator => {
+      const existing = acc.get(name)
+      if (existing) return existing
+      const created: RowAccumulator = { entryIds: [], loaderEnabled: null, presetEnabled: null, fiberPhase: null, presets: [] }
+      acc.set(name, created)
+      return created
+    }
+
     try {
-      const inv = inventory && typeof inventory.list === 'function' ? inventory.list() : null
-      if (inv && Array.isArray(inv.entries)) {
-        for (const e of inv.entries) {
+      const snapshot = await inventory.list()
+      if (!snapshot) return new Map()
+      // ① Loader 根行
+      if (Array.isArray(snapshot.entries)) {
+        for (const e of snapshot.entries) {
           const nm = e.moduleName
           if (!nm) continue
-          const rec = byName.get(nm) || { entryIds: [], enabled: true, fiberPhase: null }
+          const rec = rowOf(nm)
           rec.entryIds.push(rowIdOf(e.entryId))
-          if (!e.enabled) rec.enabled = false
+          rec.loaderEnabled = (rec.loaderEnabled ?? true) && e.enabled !== false
           if (e.fiberPhase) rec.fiberPhase = e.fiberPhase
-          byName.set(nm, rec)
+        }
+      }
+      // ② agent preset 组合行（预设 id 记入 presets；组合行 id 不是 Loader 行 id，
+      //    不能混入 entryIds，否则停用补丁会写到无法定位的条目上）
+      if (Array.isArray(snapshot.agentPresets)) {
+        for (const group of snapshot.agentPresets) {
+          const presetId = typeof group.id === 'string' ? group.id : ''
+          if (!presetId || !Array.isArray(group.rows)) continue
+          for (const row of group.rows) {
+            const nm = row.moduleName
+            if (!nm) continue
+            const rec = rowOf(nm)
+            if (rec.presets.indexOf(presetId) === -1) rec.presets.push(presetId)
+            // 'conditional' 表示 !!js 条件行，只有 Loader 上下文能定夺，按「在用」计
+            if (row.enabled !== false) rec.presetEnabled = true
+            else if (rec.presetEnabled === null) rec.presetEnabled = false
+            if (row.fiberPhase && !rec.fiberPhase) rec.fiberPhase = row.fiberPhase
+          }
         }
       }
     } catch { /* inventory optional */ }
+    // 合成 enabled：任一轴在用即视为在用；两轴都没有信息时按在用处理（保持旧行为）
+    const byName = new Map<string, InventoryRow>()
+    for (const [name, rec] of acc) {
+      const enabled = rec.loaderEnabled === true
+        || rec.presetEnabled === true
+        || (rec.loaderEnabled === null && rec.presetEnabled === null)
+      byName.set(name, { entryIds: rec.entryIds, enabled, fiberPhase: rec.fiberPhase, presets: rec.presets })
+    }
     return byName
   }
 
@@ -182,7 +271,7 @@ export function createManager(ctx: ManagerCtx, profile: string, fsTools: FsTools
     const bundles = Array.isArray(profileObj.bundles) ? profileObj.bundles.filter((b): b is string => typeof b === 'string') : []
     const deps = manifest.dependencies && typeof manifest.dependencies === 'object' ? manifest.dependencies as Record<string, unknown> : {}
 
-    const inventoryRows = readInventoryRows()
+    const inventoryRows = await readInventoryRows()
     const installPkgDir = findDshPkgDir()
 
     // 枚举集合：loader 行 ∪ bundles ∪ dependencies ∪ 锚点内置包
@@ -245,6 +334,7 @@ export function createManager(ctx: ManagerCtx, profile: string, fsTools: FsTools
         missing: !installed,
         runtime: inv ? { enabled: inv.enabled, fiberPhase: inv.fiberPhase } : null,
         entryIds,
+        presets: inv ? [...inv.presets] : [],
         githubUrl: githubUrl || null,
         homepage: meta ? meta.homepage : null,
       })
@@ -342,6 +432,15 @@ export function createManager(ctx: ManagerCtx, profile: string, fsTools: FsTools
       return ok
         ? { ok: true, message: '已停用 ' + name + '（已从 profile patch 移除装载条目；重启后生效）' }
         : { ok: false, message: '写入 cordis.patch.yml 失败' }
+    }
+    // 仅由 agent preset 组合装载（dsh ≥ 0.1.2）：本管理器只改 profile 的 bundles /
+    // cordis.patch.yml，动不了预设组合，明确告知而不是去改无关的 bundles 列表。
+    if (plugin.presets.length && !plugin.inBundles) {
+      return {
+        ok: false,
+        message: name + ' 由 agent preset 组合装载（' + plugin.presets.join('、') + '），'
+          + '请在对应预设的 cordis.yml 中移除该行；profile 的 bundles/patch 不影响它',
+      }
     }
     const mres = await updateManifest(dir, (m) => {
       const mDsh = (m.dsh && typeof m.dsh === 'object' ? m.dsh : {}) as { profile?: { bundles?: unknown } }

@@ -30,7 +30,8 @@ No more hunting through GitHub, typing CLI commands, or hand-editing configs. Op
 ## ✨ Features
 
 ### 🧭 Full visibility at a glance
-- **Built-in vs third-party**: enumerates 130+ built-in plugins from the live Loader (consistent with DSH's own list); packages in profile `dependencies` are auto-flagged as manageable third-party
+- **Built-in vs third-party**: enumerates 150+ built-in plugins from the live Loader (consistent with DSH's own list); packages in profile `dependencies` are auto-flagged as manageable third-party
+- **Agent-preset awareness** (dsh ≥ 0.1.2): plugins mounted by an agent preset composition carry a `Preset …` tag, so a disabled root Loader row no longer makes them look stopped
 - **State at a glance**: running ● / stopped / failed-to-load, source badges (npm / GitHub / local), version, and GitHub entry right on each card
 
 ### 🧩 Smarter than you'd expect
@@ -69,20 +70,24 @@ Restart dsh web, then open 设置 → 插件 → **Plugin Manager**.
 
 | Plugin version | Compatible dsh versions | Notes |
 | --- | --- | --- |
-| **0.6.x** | ≥ 0.1.1-rc.2 (verified on 0.1.1-rc.2 and 0.1.2-alpha.1) | Removed `dsh-client-runtime` from the client `inject` list (that package was removed in dsh 0.1.2) |
+| **0.7.x** | ≥ 0.1.1-rc.2 (verified on 0.1.1-rc.2 and 0.1.2-alpha.3) | dsh 0.1.2 adaptation: `pluginInventory.list()` became async and the snapshot gained agent-preset composition rows; Host services (`pluginInventory` / `loader`) are now resolved lazily per call; client `inject` points at the real runtime package `dsh-client-ui-renderer` |
+| 0.6.x | 0.1.1-rc.2 … 0.1.2-alpha.x (degraded on 0.1.2) | On dsh ≥ 0.1.2 the list silently collapses to the profile's `bundles`/`dependencies` rows, all shown as not mounted (the now-Promise `list()` was read synchronously) |
 | ≤ 0.5.x | ≤ 0.1.1-rc.x | On dsh ≥ 0.1.2 older clients never load while waiting for the removed `dsh-client-runtime` |
 
 ## ⚙️ Configuration
 
-The `web` profile is managed by default. Override it — and disable auto-restart — in the load row:
+The `web` profile is managed by default. After `dsh plugin add` the plugin already sits in `dsh.profile.bundles`
+(its bundle patch inserts the `pmgr` row), so configure it by **overriding that row** in the profile's
+`cordis.patch.yml` — never `insert` the same id twice:
 
 ```yaml
-- insert:
-    - id: pmgr
-      name: '@webkong/dsh-plugin-manager'
-      config:
-        profile: web        # profile to manage (default: web)
+- id: pmgr
+  config:
+    profile: web        # profile to manage (default: web)
 ```
+
+> ⚠️ dsh ≥ 0.1.2 fails to boot on duplicate Loader row ids (`duplicate loader entry id: pmgr`).
+> If a profile both loads the bundle and re-inserts `- id: pmgr`, convert the latter into the override form above.
 
 The auto-restart toggle is also switchable in the UI anytime (persisted to `~/.dsh/dsh-plugin-manager.json`).
 

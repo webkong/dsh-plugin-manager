@@ -278,6 +278,15 @@ export function PluginCard({ t, p, busy, onStop, onStart, onUninstall }: PluginC
   const tags: React.ReactElement[] = []
   tags.push(React.createElement('span', { key: 'kind', className: 'pmgr-tag ' + (p.kind === 'builtin' ? 'pmgr-tag-builtin' : 'pmgr-tag-third') }, kindLabel))
   if (sourceLabel) tags.push(React.createElement('span', { key: 'source', className: 'pmgr-tag pmgr-tag-source' }, sourceLabel))
+  // dsh ≥ 0.1.2：预设组合装载的插件不在 Loader 根行里，单独标出以免被误读为「未装载」
+  const presets = p.presets ?? []
+  if (presets.length) {
+    tags.push(React.createElement(
+      'span',
+      { key: 'presets', className: 'pmgr-tag pmgr-tag-preset', title: presets.join(', ') },
+      t('mountedByPreset', { list: presets.join(', ') }),
+    ))
+  }
 
   // 操作列：主操作（停用/启用）在上，卸载在下，纵向排列。
   // 「启用」覆盖两种内部情形：已装载但被停用（移除 disabled 标记）、

@@ -19,6 +19,8 @@ export interface PluginView {
   missing: boolean
   runtime: { enabled: boolean; fiberPhase: string | null } | null
   entryIds: string[]
+  /** 通过 agent preset 组合装载该包的预设 id（dsh ≥ 0.1.2） */
+  presets?: string[]
   githubUrl: string | null
   homepage: string | null
 }

@@ -18,6 +18,8 @@ interface WebServer {
 
 export function apply(ctx: BootCtx, config?: Record<string, unknown>): void {
   const profile = (config && typeof config.profile === 'string' && config.profile) || DEFAULT_PROFILE
+  // webServer 是上面 inject 声明的硬依赖，apply 时必定已激活；仅做兜底判空。
+  // 其余 Host 服务（pluginInventory / loader）异步激活，一律在 manager 里调用时懒解析。
   const webServer = ctx.get('webServer') as WebServer | undefined
   if (webServer === undefined) {
     console.log(NAME + ': webServer 不可用，跳过路由注册')

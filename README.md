@@ -30,8 +30,9 @@
 ## ✨ 功能亮点
 
 ### 🧭 全局视野，一目了然
-- **内置 vs 三方**：以 Loader 实时行为主枚举全部 130+ 内置插件，与 DSH 自带列表完全一致；profile dependencies 中的自动识别为第三方、可管理
+- **内置 vs 三方**：以 Loader 实时行为主枚举全部 150+ 内置插件，与 DSH 自带列表完全一致；profile dependencies 中的自动识别为第三方、可管理
 - **状态一眼可见**：运行中 ● / 已停用 / 加载失败，来源标签（npm / GitHub / 本地）、版本、GitHub 入口全在卡片上
+- **预设组合可见**（dsh ≥ 0.1.2）：被 agent preset 组合装载的插件带「预设 xxx」标签，不再因为根 Loader 行是 disabled 就被误报「已停用」
 
 ### 🧩 安装，比你想象的更聪明
 - **多种安装源**：npm 包名、`github:owner/repo#main`、本地路径、tarball URL，通通支持
@@ -69,20 +70,23 @@ dsh plugin --profile web add /path/to/dsh-plugin-manager
 
 | 插件版本 | 兼容的 dsh 版本 | 说明 |
 | --- | --- | --- |
-| **0.6.x** | ≥ 0.1.1-rc.2（已验证 0.1.1-rc.2 与 0.1.2-alpha.1） | client `inject` 移除 `dsh-client-runtime`（该包自 dsh 0.1.2 起被移除） |
+| **0.7.x** | ≥ 0.1.1-rc.2（已验证 0.1.1-rc.2 与 0.1.2-alpha.3） | 适配 dsh 0.1.2：`pluginInventory.list()` 改为异步、快照新增 agent preset 组合行；Host 服务（`pluginInventory` / `loader`）改为调用时懒解析；client `inject` 指向真实运行时包 `dsh-client-ui-renderer` |
+| 0.6.x | 0.1.1-rc.2 ~ 0.1.2-alpha.x（0.1.2 上功能受损） | 在 dsh ≥ 0.1.2 上清单只剩 profile 的 bundles/dependencies 几行，且全部显示「未装载」（同步读取已变成 Promise 的 `list()`，静默退化为空清单） |
 | ≤ 0.5.x | ≤ 0.1.1-rc.x | dsh ≥ 0.1.2 上旧版 client 将因等待不存在的 `dsh-client-runtime` 而无法加载 |
 
 ## ⚙️ 配置
 
-默认管理 `web` profile。可在装载行配置覆盖，并关闭自动重启：
+默认管理 `web` profile。`dsh plugin add` 安装后本插件已在 `dsh.profile.bundles` 里（其 bundle patch 会插入 `pmgr` 行），
+要改配置请在 profile 的 `cordis.patch.yml` 里**覆盖这一行**（不要再 `insert` 一次同名 id）：
 
 ```yaml
-- insert:
-    - id: pmgr
-      name: '@webkong/dsh-plugin-manager'
-      config:
-        profile: web        # 管理的 profile（默认 web）
+- id: pmgr
+  config:
+    profile: web        # 管理的 profile（默认 web）
 ```
+
+> ⚠️ dsh ≥ 0.1.2 对重复的 Loader 行 id 会直接**启动失败**（`duplicate loader entry id: pmgr`）。
+> 如果既在 `bundles` 里装载、又在 profile patch 里 `insert: - id: pmgr`，请把后者改成上面的覆盖写法。
 
 自动重启开关在页面上可随时切换（持久化到 `~/.dsh/dsh-plugin-manager.json`）。
 

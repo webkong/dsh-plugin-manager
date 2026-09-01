@@ -4,6 +4,7 @@
 import { readFile, writeFile, rename } from 'node:fs/promises'
 import { existsSync, realpathSync } from 'node:fs'
 import { execFile } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 
 export function dshHome(): string {
@@ -110,8 +111,15 @@ export async function writeSettings(settings: PmgrSettings): Promise<PmgrSetting
   return settings
 }
 
-// 定位 dsh 安装包目录（用于内置插件解析）：PATH 中找 dsh bin → realpath → 包目录
+// 定位 dsh 安装包目录（用于内置插件解析）：
+// ① 进程内解析 —— 插件与 dsh 通常装在同一 node_modules 树里，命中的就是「当前正在运行」的发行版；
+//    混装场景（例如 PATH 上是 0.1.1 全局安装、实际运行的是本地 0.1.2）必须以这一份为准。
+// ② 回退 PATH：在 PATH 里找 dsh bin → realpath → 包目录。
 export function findDshPkgDir(): string {
+  try {
+    const resolved = createRequire(import.meta.url).resolve('@deepseek-ai/dsh/package.json')
+    return resolved.replace(/\/package\.json$/, '')
+  } catch { /* 未与 dsh 同树安装，走 PATH */ }
   const pathEnv = process.env.PATH || ''
   for (const dir of pathEnv.split(':')) {
     if (!dir) continue
